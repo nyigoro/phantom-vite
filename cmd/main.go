@@ -31,13 +31,29 @@ func writeTempScript(url string) (string, error) {
 	return tmpFile, err
 }
 
+func runViteBuild() error {
+	fmt.Println("[Phantom Vite] Running Vite build...")
+	cmd := exec.Command("npx", "vite", "build")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: phantom-vite <script.js> or phantom-vite open <url>")
+		fmt.Println("Usage:")
+		fmt.Println("  phantom-vite open <url>")
+		fmt.Println("  phantom-vite build")
+		fmt.Println("  phantom-vite <script.js>")
 		os.Exit(1)
 	}
 
-	if os.Args[1] == "open" && len(os.Args) >= 3 {
+	switch os.Args[1] {
+	case "open":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: phantom-vite open <url>")
+			os.Exit(1)
+		}
 		url := os.Args[2]
 		fmt.Println("[Phantom Vite] Opening URL:", url)
 
@@ -52,14 +68,19 @@ func main() {
 			fmt.Println("Error running Puppeteer:", err)
 			os.Exit(1)
 		}
-		return
-	}
 
-	// Default mode: run JS script
-	script := os.Args[1]
-	fmt.Println("[Phantom Vite] Running script:", script)
-	if err := runNodeScript(script); err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
+	case "build":
+		if err := runViteBuild(); err != nil {
+			fmt.Println("Vite build failed:", err)
+			os.Exit(1)
+		}
+
+	default:
+		script := os.Args[1]
+		fmt.Println("[Phantom Vite] Running script:", script)
+		if err := runNodeScript(script); err != nil {
+			fmt.Println("Script error:", err)
+			os.Exit(1)
+		}
 	}
 }
