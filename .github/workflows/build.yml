@@ -1,0 +1,41 @@
+name: Build Phantom Vite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build TypeScript scripts
+      run: npx vite build
+
+    - name: Build Go CLI
+      run: go build -o phantom-vite ./cmd
+
+    - name: Run test script (optional)
+      run: ./phantom-vite dist/example.js
+      shell: bash
