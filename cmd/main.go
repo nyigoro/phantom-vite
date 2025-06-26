@@ -114,7 +114,22 @@ func main() {
 	if err := cmd.Run(); err != nil {
 		fmt.Println("Gemini CLI error:", err)
 	}
-  
+        case "serve":
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: phantom-vite serve <file>")
+		os.Exit(1)
+	}
+	file := os.Args[2]
+	cmd := exec.Command("npx", "vite", "preview", "--config", file)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	fmt.Println("[Phantom Vite] Serving file:", file)
+	if err := cmd.Run(); err != nil {
+		fmt.Println("Serve error:", err)
+		os.Exit(1)
+	}
+
 	default:
 		script := os.Args[1]
 		fmt.Println("[Phantom Vite] Running script:", script)
