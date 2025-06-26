@@ -1,1 +1,20 @@
+# Node
+node_modules/
+dist/
 
+# Vite cache
+.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Go
+phantom-vite
+*.exe
+*.out
+
+# macOS / Linux
+.DS_Store
+*.swp
