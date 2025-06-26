@@ -40,6 +40,15 @@ func runViteBuild() error {
 	return cmd.Run()
 }
 
+func resolveCommand(name string) string {
+	if os.PathSeparator == '\\' { // Windows
+		if name == "python3" {
+			return "python"
+		}
+	}
+	return name
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage:")
