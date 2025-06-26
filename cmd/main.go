@@ -75,6 +75,21 @@ func main() {
 			fmt.Println("Vite build failed:", err)
 			os.Exit(1)
 		}
+        case "agent":
+	       if len(os.Args) < 3 {
+		      fmt.Println("Usage: phantom-vite agent <prompt>")
+		       os.Exit(1)
+	        }
+	               prompt := strings.Join(os.Args[2:], " ")
+	               cmd := exec.Command("python3", "python/agent.py", prompt)
+	               cmd.Stdout = os.Stdout
+	               cmd.Stderr = os.Stderr
+	               cmd.Stdin = os.Stdin
+	               fmt.Println("[Phantom Vite] Launching AI agent...")
+	      if err := cmd.Run(); err != nil {
+		       fmt.Println("Agent error:", err)
+		       os.Exit(1)
+	     }
 
 	default:
 		script := os.Args[1]
