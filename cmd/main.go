@@ -90,7 +90,22 @@ func main() {
 		       fmt.Println("Agent error:", err)
 		       os.Exit(1)
 	     }
-
+	
+      case "gemini":
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: phantom-vite gemini <prompt>")
+		os.Exit(1)
+	}
+	prompt := strings.Join(os.Args[2:], " ")
+	cmd := exec.Command("gemini", prompt)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	fmt.Println("[Phantom Vite] Passing to Gemini CLI...")
+	if err := cmd.Run(); err != nil {
+		fmt.Println("Gemini CLI error:", err)
+	}
+  
 	default:
 		script := os.Args[1]
 		fmt.Println("[Phantom Vite] Running script:", script)
