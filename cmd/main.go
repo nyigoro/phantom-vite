@@ -129,6 +129,19 @@ func main() {
 		fmt.Println("Serve error:", err)
 		os.Exit(1)
 	}
+        type Config struct {
+	Headless bool `json:"headless"`
+}
+
+func loadConfig() Config {
+	data, err := os.ReadFile("phantomvite.config.json")
+	if err != nil {
+		return Config{Headless: true} // default
+	}
+	var cfg Config
+	json.Unmarshal(data, &cfg)
+	return cfg
+}
 
 	default:
 		script := os.Args[1]
