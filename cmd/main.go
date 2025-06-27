@@ -33,9 +33,9 @@ func writeTempScript(url string) (string, error) {
 	return tmpFile, err
 }
 
-func runViteBuild() error {
-	fmt.Println("[Phantom Vite] Running Vite build...")
-	cmd := exec.Command("npx", "vite", "build")
+func runViteBundle(entry string) error {
+	fmt.Println("[Phantom Vite] Bundling:", entry)
+	cmd := exec.Command("npx", "vite", "build", "--config", "vite.config.js", "--entry", entry)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -116,6 +116,17 @@ func main() {
 			os.Exit(1)
 		}
 	}
+		case "bundle": {
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: phantom-vite bundle <scripts/your-file.ts>")
+		os.Exit(1)
+	}
+	entry := os.Args[2]
+	if err := runViteBundle(entry); err != nil {
+		fmt.Println("Vite bundle failed:", err)
+		os.Exit(1)
+	}
+}
 	case "agent": {
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: phantom-vite agent <prompt>")
