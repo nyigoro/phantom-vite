@@ -1,36 +1,35 @@
-// vite.plugins.virtual.js
 import fs from 'fs'
-import path from 'path'
 
-export function virtualPluginLoader() {
-  const configPath = './phantomvite.config.json'
-  let pluginPaths = []
-
-  if (fs.existsSync(configPath)) {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-    pluginPaths = config.plugins || []
-  }
+export function virtualPluginLoader(configPath = './phantomvite.config.json') {
+  const virtualId = 'virtual:phantom-plugins'
+  const resolvedVirtualId = '\0' + virtualId
 
   return {
-    name: 'phantomvite-virtual-plugins',
+    name: 'phantom-vite-virtual-plugin-loader',
+
     resolveId(id) {
-      if (id === 'virtual:phantom-plugins') return id
+      if (id === virtualId) {
+        return resolvedVirtualId
+      }
     },
+
     load(id) {
-      if (id === 'virtual:phantom-plugins') {
-        // Generate imports + plugin array
-        const imports = pluginPaths.map((p, i) => {
-          const fullPath = path.resolve(p)
-          return `import * as plugin${i} from ${JSON.stringify(fullPath)}`
-        }).join('\n')
+      if (id === resolvedVirtualId) {
+        try {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+          const plugins = Array.isArray(config.plugins) ? config.plugins : []
 
-        const pluginList = pluginPaths.map((_, i) => `plugin${i}`).join(', ')
+          const imports = plugins
+            .map((p, i) => `import * as plugin${i} from '${p}'`)
+            .join('\n')
 
-        return `
-${imports}
+          const exports = `export default [${plugins.map((_, i) => `plugin${i}`).join(', ')}]`
 
-export const plugins = [${pluginList}]
-`
+          return `${imports}\n\n${exports}`
+        } catch (e) {
+          console.warn('[Phantom Vite] Failed to load plugins for virtual module:', e)
+          return `export default []`
+        }
       }
     }
   }
