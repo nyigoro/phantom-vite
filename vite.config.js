@@ -51,6 +51,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: false,
     minify: false,
+    sourcemap: true,
     
     rollupOptions: {
       // Mark Node.js built-ins and large dependencies as external
@@ -78,9 +79,7 @@ export default defineConfig({
         format: 'es',
         entryFileNames: '[name].js',
         // Preserve module structure for Node.js
-        preserveModules: false,
-        // Generate sourcemaps for debugging
-        sourcemap: true
+        preserveModules: false
       }
     }
   },
