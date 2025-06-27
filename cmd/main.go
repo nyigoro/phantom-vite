@@ -9,9 +9,15 @@ import (
 	"strings"
 )
 
+type Viewport struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
 type Config struct {
 	Headless bool     `json:"headless"`
 	Plugins  []string `json:"plugins"`
+	Viewport Viewport `json:"viewport"`
 }
 
 func loadConfig() Config {
