@@ -162,6 +162,20 @@ func main() {
 			os.Exit(1)
 		}
 	}
+        case "plugins": {
+	cfg := loadConfig()
+	if len(cfg.Plugins) == 0 {
+		fmt.Println("[Phantom Vite] No plugins defined in phantomvite.config.json")
+		return
+	}
+	fmt.Println("[Phantom Vite] Plugin Check:")
+	for _, path := range cfg.Plugins {
+		if _, err := os.Stat(path); err != nil {
+			fmt.Printf("  ❌ %s (not found)\n", path)
+		} else {
+			fmt.Printf("  ✅ %s\n", path)
+		}
+	}
 	default: {
 		script := os.Args[1]
 		fmt.Println("[Phantom Vite] Running script:", script)
