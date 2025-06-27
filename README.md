@@ -99,6 +99,8 @@ phantom-vite/
 
 MIT — PhantomJS-inspired, Gemini-powered, developer-first.
 
-```nyigoro
+```bash
+nyigoro
+```
 
 ---
