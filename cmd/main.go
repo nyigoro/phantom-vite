@@ -176,41 +176,26 @@ func main() {
 
 	switch os.Args[1] {
 case "open":
-    if len(os.Args) < 3 {
-        fmt.Println("Usage: phantom-vite open <url> [--engine engine]")
+    if len(args) < 2 {
+        fmt.Println("Usage: phantom-vite open <url> [--engine engineName]")
         return
     }
 
-    url := os.Args[2]
+    url := args[1]
     engine := "puppeteer" // default
 
-    for i := 3; i < len(os.Args); i++ {
-        if os.Args[i] == "--engine" && i+1 < len(os.Args) {
-            engine = os.Args[i+1]
-        }
+    if len(args) > 3 && args[2] == "--engine" {
+        engine = args[3]
     }
 
-    // Load plugins
-    cfg := loadConfig()
-    pluginEnv := strings.Join(cfg.Plugins, ",")
-
-    // Generate script content
-    scriptContent, err := GenerateTempScript(engine, url, pluginEnv)
+    scriptPath, err := writeTempScript(url, engine)
     if err != nil {
-        fmt.Println("Error generating script:", err)
+        fmt.Println("❌ Failed to generate script:", err)
         return
     }
 
-    tempFile, err := writeTempFile(scriptContent, engine)
-    if err != nil {
-        fmt.Println("Error writing temp script:", err)
-        return
-    }
-
-    defer os.Remove(tempFile)
-
-    fmt.Println("[Phantom Vite] Running script:", tempFile)
-    runScript(engine, tempFile)
+    fmt.Println("🚀 Running script:", scriptPath)
+    runEngineScript(scriptPath, engine)
         case "engines":
     fmt.Println("🔧 Supported engines:")
     fmt.Println(" - puppeteer  (Node.js, full Chrome control via DevTools protocol)")
