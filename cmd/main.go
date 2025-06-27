@@ -17,6 +17,17 @@ func runNodeScript(script string, args ...string) error {
 	return cmd.Run()
 }
 
+func validatePlugins(plugins []string) {
+	fmt.Println("[Phantom Vite] Validating configured plugins...")
+	for _, path := range plugins {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			fmt.Printf("❌ Plugin not found: %s\n", path)
+		} else {
+			fmt.Printf("✅ Plugin OK: %s\n", path)
+		}
+	}
+}
+
 func writeTempScript(url string) (string, error) {
 	code := fmt.Sprintf(`import puppeteer from 'puppeteer';
 (async () => {
