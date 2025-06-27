@@ -12,16 +12,25 @@ import { pathToFileURL } from 'url';
 import fs from 'fs';
 
 console.log("[Phantom Vite] Loading plugins...");
-
 const pluginPaths = %s;
 const plugins = [];
 
-for (const p of pluginPaths) {
+for (const pluginPath of pluginPaths) {
+  if (!fs.existsSync(pluginPath)) {
+    console.warn("[Plugin] Not found:", pluginPath);
+    continue;
+  }
+
   try {
-    const module = await import(pathToFileURL(p).href);
-    plugins.push(module);
+    const plugin = await import(pathToFileURL(pluginPath).href);
+    if (!plugin.onStart && !plugin.onPageLoad && !plugin.onExit) {
+      console.warn("[Plugin] No valid hooks in:", pluginPath);
+      continue;
+    }
+    plugins.push(plugin);
+    console.log("[Plugin] Loaded:", pluginPath);
   } catch (err) {
-    console.error("[Plugin Load Error]", err.message);
+    console.error("[Plugin] Failed to load:", pluginPath, "-", err.message);
   }
 }
 
@@ -50,4 +59,3 @@ for (const plugin of plugins) {
 	err := os.WriteFile(tmpFile, []byte(code), 0644)
 	return tmpFile, err
 }
-
