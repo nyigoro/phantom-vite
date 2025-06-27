@@ -206,17 +206,26 @@ case "open":
 			os.Exit(1)
 		}
 	}
-		case "bundle": {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: phantom-vite bundle <scripts/your-file.ts>")
-		os.Exit(1)
-	}
-	entry := os.Args[2]
-	if err := runViteBundle(entry); err != nil {
-		fmt.Println("Vite bundle failed:", err)
-		os.Exit(1)
-	}
-}
+		case "bundle":
+    if len(args) < 2 {
+        fmt.Println("Usage: phantom-vite bundle <file> [--engine engineName]")
+        return
+    }
+
+    inputFile := args[1]
+    engine := "puppeteer" // default
+
+    if len(args) > 3 && args[2] == "--engine" {
+        engine = args[3]
+    }
+
+    err := bundleEngineScript(inputFile, engine)
+    if err != nil {
+        fmt.Println("❌ Bundling failed:", err)
+        return
+    }
+
+    fmt.Println("📦 Bundled", inputFile, "for", engine)
 	case "agent": {
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: phantom-vite agent <prompt>")
