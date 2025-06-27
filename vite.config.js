@@ -52,6 +52,7 @@ validEntries.forEach(entry => {
 })
 
 export default defineConfig({
+  assetsInclude: ['**/*.py'],
   build: {
     target: 'node18',
     outDir: 'dist',
