@@ -33,6 +33,14 @@ func writeTempScript(url string) (string, error) {
 	return tmpFile, err
 }
 
+func runViteBuild() error {
+	fmt.Println("[Phantom Vite] Running Vite build...")
+	cmd := exec.Command("npx", "vite", "build")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func runViteBundle(entry string) error {
 	fmt.Println("[Phantom Vite] Bundling:", entry)
 	cmd := exec.Command("npx", "vite", "build", "--config", "vite.config.js", "--entry", entry)
