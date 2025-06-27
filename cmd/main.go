@@ -30,28 +30,25 @@ if !supportedEngines[engine] {
     return
 }
 
-func runScript(engine, file string) {
-    var cmd *exec.Cmd
-
+func runEngineScript(path, engine string) {
     switch engine {
     case "puppeteer", "playwright":
-        cmd = exec.Command("node", file)
+        cmd := exec.Command("node", path)
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        cmd.Run()
     case "selenium":
-        cmd = exec.Command(resolvePythonCmd(), file)
+        cmd := exec.Command("python3", path)
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        cmd.Run()
     case "gemini":
-        cmd = exec.Command("gemini", file)
+        cmd := exec.Command("gemini", path)
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        cmd.Run()
     default:
-        fmt.Println("Unsupported engine:", engine)
-        return
-    }
-
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
-    cmd.Stdin = os.Stdin
-
-    err := cmd.Run()
-    if err != nil {
-        fmt.Println("Error running script:", err)
+        fmt.Println("❌ Unknown engine:", engine)
     }
 }
 
