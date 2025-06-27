@@ -9,27 +9,50 @@ import (
 	"path/filepath"
 )
 
-engine := "puppeteer" // default
-
-for i, arg := range args {
-	if arg == "--engine" && i+1 < len(args) {
-		engine = args[i+1]
-	}
+supportedEngines := map[string]bool{
+    "puppeteer": true,
+    "playwright": true,
+    "selenium": true,
+    "gemini": true,
 }
 
-func runScriptWithEngine(engine, scriptPath string) error {
-	fmt.Println("[Phantom Vite] Running with engine:", engine)
+engine := "puppeteer" // default
 
-	switch engine {
-	case "puppeteer", "playwright":
-		return runNodeScript(scriptPath)
-	case "selenium":
-		return runPythonScript(scriptPath)
-	case "gemini":
-		return runGeminiPrompt(scriptPath)
-	default:
-		return fmt.Errorf("unknown engine: %s", engine)
-	}
+for i := 3; i < len(os.Args); i++ {
+    if os.Args[i] == "--engine" && i+1 < len(os.Args) {
+        engine = os.Args[i+1]
+    }
+}
+
+if !supportedEngines[engine] {
+    fmt.Println("❌ Unsupported engine:", engine)
+    fmt.Println("✅ Supported engines: puppeteer, playwright, selenium, gemini")
+    return
+}
+
+func runScript(engine, file string) {
+    var cmd *exec.Cmd
+
+    switch engine {
+    case "puppeteer", "playwright":
+        cmd = exec.Command("node", file)
+    case "selenium":
+        cmd = exec.Command(resolvePythonCmd(), file)
+    case "gemini":
+        cmd = exec.Command("gemini", file)
+    default:
+        fmt.Println("Unsupported engine:", engine)
+        return
+    }
+
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    cmd.Stdin = os.Stdin
+
+    err := cmd.Run()
+    if err != nil {
+        fmt.Println("Error running script:", err)
+    }
 }
 
 func runNodeScript(script string) error {
@@ -152,27 +175,49 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	case "open": {
-	if command == "open" && len(args) >= 2 {
-	url := args[1]
-	tempScript, err := writeTempScript(url)
-	if err != nil {
-		log.Fatal(err)
-	}
+case "open":
+    if len(os.Args) < 3 {
+        fmt.Println("Usage: phantom-vite open <url> [--engine engine]")
+        return
+    }
 
-	// New: select engine
-	engine := "puppeteer" // default
-	for i, arg := range args {
-		if arg == "--engine" && i+1 < len(args) {
-			engine = args[i+1]
-		}
-	}
+    url := os.Args[2]
+    engine := "puppeteer" // default
 
-	err = runScriptWithEngine(engine, tempScript)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
+    for i := 3; i < len(os.Args); i++ {
+        if os.Args[i] == "--engine" && i+1 < len(os.Args) {
+            engine = os.Args[i+1]
+        }
+    }
+
+    // Load plugins
+    cfg := loadConfig()
+    pluginEnv := strings.Join(cfg.Plugins, ",")
+
+    // Generate script content
+    scriptContent, err := GenerateTempScript(engine, url, pluginEnv)
+    if err != nil {
+        fmt.Println("Error generating script:", err)
+        return
+    }
+
+    tempFile, err := writeTempFile(scriptContent, engine)
+    if err != nil {
+        fmt.Println("Error writing temp script:", err)
+        return
+    }
+
+    defer os.Remove(tempFile)
+
+    fmt.Println("[Phantom Vite] Running script:", tempFile)
+    runScript(engine, tempFile)
+        case "engines":
+    fmt.Println("🔧 Supported engines:")
+    fmt.Println(" - puppeteer  (Node.js, full Chrome control via DevTools protocol)")
+    fmt.Println(" - playwright (Node.js, cross-browser automation)")
+    fmt.Println(" - selenium   (Python, WebDriver-based, cross-language)")
+    fmt.Println(" - gemini     (CLI, Gemini tool integration for testing)")
+    return
 	case "build": {
 		if err := runViteBuild(); err != nil {
 			fmt.Println("Vite build failed:", err)
@@ -220,7 +265,7 @@ func main() {
 		if err := cmd.Run(); err != nil {
 			fmt.Println("Gemini CLI error:", err)
 		}
-	}
+	}	
 	case "serve": {
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: phantom-vite serve <file>")
