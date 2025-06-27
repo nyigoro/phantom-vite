@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -41,12 +42,27 @@ func runViteBuild() error {
 }
 
 func resolveCommand(name string) string {
-	if os.PathSeparator == '\\' { // Windows
+	if os.PathSeparator == '\\' {
 		if name == "python3" {
 			return "python"
 		}
 	}
 	return name
+}
+
+// ✅ Config definition moved outside main
+type Config struct {
+	Headless bool `json:"headless"`
+}
+
+func loadConfig() Config {
+	data, err := os.ReadFile("phantomvite.config.json")
+	if err != nil {
+		return Config{Headless: true}
+	}
+	var cfg Config
+	json.Unmarshal(data, &cfg)
+	return cfg
 }
 
 func main() {
@@ -59,7 +75,7 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	case "open":
+	case "open": {
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: phantom-vite open <url>")
 			os.Exit(1)
@@ -78,77 +94,67 @@ func main() {
 			fmt.Println("Error running Puppeteer:", err)
 			os.Exit(1)
 		}
-
-	case "build":
+	}
+	case "build": {
 		if err := runViteBuild(); err != nil {
 			fmt.Println("Vite build failed:", err)
 			os.Exit(1)
 		}
-        case "agent":
-	       if len(os.Args) < 3 {
-		      fmt.Println("Usage: phantom-vite agent <prompt>")
-		       os.Exit(1)
-	        }
-	               prompt := strings.Join(os.Args[2:], " ")
-	               cmd := exec.Command("python3", "python/agent.py", prompt)
-	               cmd.Stdout = os.Stdout
-	               cmd.Stderr = os.Stderr
-	               cmd.Stdin = os.Stdin
-	               fmt.Println("[Phantom Vite] Launching AI agent...")
-	      if err := cmd.Run(); err != nil {
-		       fmt.Println("Agent error:", err)
-		       os.Exit(1)
-	     }
-	
-      case "gemini":
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: phantom-vite gemini <prompt>")
-		os.Exit(1)
 	}
-	prompt := strings.Join(os.Args[2:], " ")
-	cmd := exec.Command("gemini", prompt)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	fmt.Println("[Phantom Vite] Passing to Gemini CLI...")
-	if err := cmd.Run(); err != nil {
-		fmt.Println("Gemini CLI error:", err)
+	case "agent": {
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: phantom-vite agent <prompt>")
+			os.Exit(1)
+		}
+		prompt := strings.Join(os.Args[2:], " ")
+		cmd := exec.Command(resolveCommand("python3"), "python/agent.py", prompt)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		fmt.Println("[Phantom Vite] Launching AI agent...")
+		if err := cmd.Run(); err != nil {
+			fmt.Println("Agent error:", err)
+			os.Exit(1)
+		}
 	}
-        case "serve":
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: phantom-vite serve <file>")
-		os.Exit(1)
+	case "gemini": {
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: phantom-vite gemini <prompt>")
+			os.Exit(1)
+		}
+		prompt := strings.Join(os.Args[2:], " ")
+		cmd := exec.Command(resolveCommand("gemini"), prompt)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		fmt.Println("[Phantom Vite] Passing to Gemini CLI...")
+		if err := cmd.Run(); err != nil {
+			fmt.Println("Gemini CLI error:", err)
+		}
 	}
-	file := os.Args[2]
-	cmd := exec.Command("npx", "vite", "preview", "--config", file)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	fmt.Println("[Phantom Vite] Serving file:", file)
-	if err := cmd.Run(); err != nil {
-		fmt.Println("Serve error:", err)
-		os.Exit(1)
+	case "serve": {
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: phantom-vite serve <file>")
+			os.Exit(1)
+		}
+		file := os.Args[2]
+		cmd := exec.Command("npx", "vite", "preview", "--config", file)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		fmt.Println("[Phantom Vite] Serving file:", file)
+		if err := cmd.Run(); err != nil {
+			fmt.Println("Serve error:", err)
+			os.Exit(1)
+		}
 	}
-        type Config struct {
-	Headless bool `json:"headless"`
-}
-
-func loadConfig() Config {
-	data, err := os.ReadFile("phantomvite.config.json")
-	if err != nil {
-		return Config{Headless: true} // default
-	}
-	var cfg Config
-	json.Unmarshal(data, &cfg)
-	return cfg
-}
-
-	default:
+	default: {
 		script := os.Args[1]
 		fmt.Println("[Phantom Vite] Running script:", script)
 		if err := runNodeScript(script); err != nil {
 			fmt.Println("Script error:", err)
 			os.Exit(1)
 		}
+	}
 	}
 }
