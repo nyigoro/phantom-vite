@@ -6,17 +6,21 @@ A hybrid headless browser CLI inspired by PhantomJS — powered by Go, Node.js (
 
 ## 🚀 Features
 
-- `open <url>` – Headless browser via Puppeteer to capture screenshots and get page metadata.
-- `build` – Fast static site builds using Vite.
-- `agent <prompt>` – Python-powered AI agent (customizable).
-- `gemini <prompt>` – Access [Gemini CLI](https://github.com/google-gemini/gemini-cli) directly from terminal.
-- `serve <file>` – Local Vite dev preview for any HTML/JS file.
-- Execute `.js` files directly with `phantom-vite script.js`.
-- Configurable with `phantomvite.config.json`.
+- ✅ `open <url>` — Headless Puppeteer screenshot + title
+- ✅ `build` — Vite build pipeline for frontend assets
+- ✅ `serve <file>` — Vite preview mode for local development
+- ✅ `agent <prompt>` — Python-based AI agent handler
+- ✅ `gemini <prompt>` — Google Gemini CLI integration
+- ✅ `<script.js>` — Run any Node.js script directly
+- ✅ Cross-platform (Linux & Windows)
+- ✅ Optional config via `phantomvite.config.json`
+- ✅ Clear CLI help and Puppeteer dependency checks
 
 ---
 
 ## 📦 Installation
+
+```bash
 
 ### Prerequisites
 - Go 1.21+
