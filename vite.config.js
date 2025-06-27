@@ -1,16 +1,14 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import fs from 'fs'
 import path from 'path'
-import { virtualPluginLoader } from './vite.plugins.virtual.js' 
 
 const configPath = './phantomvite.config.json'
-let entries = ['scripts/example.ts'] 
+let entries = ['scripts/example.ts'] // default fallback
 
 try {
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-
-    // entries > entry[] > entry string
     if (Array.isArray(config.entries)) {
       entries = config.entries
     } else if (Array.isArray(config.entry)) {
@@ -25,31 +23,29 @@ try {
 
 const input = {}
 entries.forEach(entry => {
+  const name = path.basename(entry, path.extname(entry))
   if (fs.existsSync(entry)) {
-    const name = path.basename(entry, path.extname(entry))
-    input[name] = entry
+    input[name] = path.resolve(entry)
   } else {
-    console.warn(`[Phantom Vite] Missing entry file: ${entry}`)
+    console.warn(`[Phantom Vite] ⚠️ Missing entry: ${entry}`)
   }
 })
 
-// External Node.js built-ins
+// Built-in Node.js modules (exclude from bundling)
 const NODE_BUILTINS = [
-  'fs', 'path', 'http', 'https', 'url', 'util', 'os', 'dns', 'net', 'tls', 'stream',
-  'buffer', 'crypto', 'events', 'child_process', 'readline', 'worker_threads',
-  'module',
-  'node:fs', 'node:path', 'node:child_process', 'node:fs/promises',
-  'node:url', 'node:stream', 'node:readline', 'node:process',
-  'node:crypto', 'node:dns', 'node:events', 'node:buffer', 'node:assert'
+  'fs', 'path', 'os', 'url', 'child_process', 'stream', 'crypto',
+  'net', 'tls', 'readline', 'util', 'events', 'buffer',
+  'node:fs', 'node:path', 'node:os', 'node:url', 'node:child_process',
+  'node:stream', 'node:crypto', 'node:net', 'node:tls', 'node:readline',
+  'node:util', 'node:events', 'node:buffer'
 ]
 
 export default defineConfig({
-  plugins: [virtualPluginLoader()],
   build: {
     target: 'node22',
     lib: {
       entry: input,
-      formats: ['es']
+      formats: ['es'],
     },
     outDir: 'dist',
     emptyOutDir: false,
@@ -68,6 +64,6 @@ export default defineConfig({
     global: 'globalThis'
   },
   optimizeDeps: {
-    exclude: ['puppeteer', 'puppeteer-core', '@puppeteer/browsers']
+    exclude: ['puppeteer', 'puppeteer-core', '@puppeteer/browsers', 'playwright']
   }
 })
