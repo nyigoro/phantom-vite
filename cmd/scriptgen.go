@@ -1,3 +1,5 @@
+package main
+
 func writeTempScript(url, engine string) (string, error) {
     var content string
 
