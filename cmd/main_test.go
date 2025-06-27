@@ -4,7 +4,6 @@ import "testing"
 
 func writeTempScript(url string) (string, error) {
 	cfg := loadConfig()
-	pluginsJSON, _ := json.Marshal(cfg.Plugins)
 
 	code := fmt.Sprintf(`import puppeteer from 'puppeteer';
 
@@ -44,5 +43,9 @@ for (const path of pluginPaths) {
   for (const p of plugins) {
     if (typeof p.onExit === 'function') await p.onExit();
   }
-})();
-`, url)
+})();`, url)
+
+	tmpFile := "phantom-open.js"
+	err := os.WriteFile(tmpFile, []byte(code), 0644)
+	return tmpFile, err
+}
