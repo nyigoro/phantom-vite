@@ -3,6 +3,7 @@ name: Build Phantom Vite
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -11,31 +12,103 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            suffix: ''
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            suffix: '.exe'
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            suffix: ''
+    
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v3
-
+      uses: actions/checkout@v4
+      
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
-
+        
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-
+        
     - name: Install dependencies
       run: npm install
-
+      
     - name: Build TypeScript scripts
       run: npx vite build
-
+      
     - name: Build Go CLI
-      run: go build -o phantom-vite ./cmd
-
-    - name: Run test script (optional)
-      run: ./phantom-vite dist/example.js
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: go build -ldflags="-s -w" -o phantom-vite${{ matrix.suffix }} ./cmd
+      
+    - name: Test executable (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        chmod +x ./phantom-vite
+        ./phantom-vite dist/example.js
+        
+    - name: Test executable (Windows)
+      if: matrix.os == 'windows-latest'
+      run: .\phantom-vite.exe dist\example.js
+      shell: cmd
+      
+    - name: Create release package
+      run: |
+        mkdir -p release
+        cp phantom-vite${{ matrix.suffix }} release/
+        cp -r dist release/
+        cp -r plugins release/ 2>/dev/null || echo "No plugins directory"
+        cp phantomvite.config.json release/ 2>/dev/null || echo "No config file"
+        cp README.md release/
       shell: bash
+      
+    - name: Archive release
+      uses: actions/upload-artifact@v4
+      with:
+        name: phantom-vite-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: release/
+        retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: Create release archives
+      run: |
+        for dir in phantom-vite-*/; do
+          os_arch=$(basename "$dir")
+          if [[ $os_arch == *"windows"* ]]; then
+            cd "$dir" && zip -r "../${os_arch}.zip" . && cd ..
+          else
+            tar -czf "${os_arch}.tar.gz" -C "$dir" .
+          fi
+        done
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          *.zip
+          *.tar.gz
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
