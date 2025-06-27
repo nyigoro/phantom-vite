@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"path/filepath"
 )
 
 func runNodeScript(script string, args ...string) error {
