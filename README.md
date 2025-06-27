@@ -35,7 +35,7 @@ npm install -g @google/gemini-cli
 ### Build from source
 
 ```bash
-git clone https://github.com/yourname/phantom-vite
+git clone https://github.com/nyigoro/phantom-vite.git
 cd phantom-vite
 npm install
 npx vite build
