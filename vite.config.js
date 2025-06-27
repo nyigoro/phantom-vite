@@ -1,97 +1,86 @@
-// vite.config.js - Multi-entry Node.js compatible build
+// vite.config.js
 import { defineConfig } from 'vite'
 import fs from 'fs'
 import path from 'path'
 
+// Load Phantom Vite config
 const configPath = './phantomvite.config.json'
-let entries = ['scripts/example.ts'] 
+let entries = ['scripts/example.ts'] // default
 
-try {
-  if (fs.existsSync(configPath)) {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-
-    if (Array.isArray(config.entries)) {
-      entries = config.entries
-    } else if (Array.isArray(config.entry)) {
-      entries = config.entry
-    } else if (typeof config.entry === 'string') {
-      entries = [config.entry]
-    }
-  }
-} catch (e) {
-  console.warn('[Phantom Vite] Failed to parse phantomvite.config.json:', e)
+if (fs.existsSync(configPath)) {
+  const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+  if (Array.isArray(cfg.entries)) entries = cfg.entries
+  else if (Array.isArray(cfg.entry)) entries = cfg.entry
+  else if (typeof cfg.entry === 'string') entries = [cfg.entry]
 }
 
-// Validate entry existence
-const validEntries = []
-const missingEntries = []
+// Validate & filter only .ts/.js
+entries = entries.filter(file =>
+  fs.existsSync(file) && /\.(ts|js)$/.test(file)
+)
 
-entries.forEach(entry => {
-  if (fs.existsSync(entry)) {
-    validEntries.push(entry)
-  } else {
-    missingEntries.push(entry)
-  }
-})
-
-if (missingEntries.length > 0) {
-  console.warn('[Phantom Vite] Missing entry files:')
-  missingEntries.forEach(e => console.warn(`  ❌ ${e}`))
-}
-
-if (validEntries.length === 0) {
-  console.error('[Phantom Vite] No valid entry files found!')
+if (entries.length === 0) {
+  console.error('[Phantom Vite] No valid .ts or .js entry files found!')
   process.exit(1)
 }
 
-// Map input
 const input = {}
-validEntries.forEach(entry => {
+entries.forEach(entry => {
   const name = path.basename(entry, path.extname(entry))
-  input[name] = path.resolve(__dirname, entry)
+  input[name] = path.resolve(entry)
 })
 
 export default defineConfig({
-  assetsInclude: [
-    '**/*.py',
-    '**/*.gemini'
-  ],
   build: {
-    target: 'node18',
+    ssr: true, // ✅ Target Node.js explicitly
+    target: 'node20',
     outDir: 'dist',
     emptyOutDir: false,
     sourcemap: true,
     minify: false,
+
+    lib: {
+      entry: input,
+      formats: ['es'],
+    },
 
     rollupOptions: {
       input,
       output: {
         format: 'es',
         entryFileNames: '[name].js',
-        preserveModules: false,
       },
-      // 🟡 Leave Puppeteer bundled (do NOT mark as external)
       external: [
-        'fs', 'path', 'os', 'util', 'url', 'crypto', 'stream', 'child_process',
-        'events', 'buffer', 'readline', 'worker_threads', 'http', 'https',
-        'dns', 'net', 'tls',
+        // Node built-ins
+        'fs', 'fs/promises', 'path', 'url', 'os', 'crypto', 'stream',
+        'child_process', 'events', 'buffer', 'util', 'http', 'https',
+        'readline', 'zlib', 'assert', 'dns', 'net', 'tls', 'module',
+        'node:fs', 'node:fs/promises', 'node:path', 'node:url',
+        'node:os', 'node:crypto', 'node:stream', 'node:child_process',
+        'node:events', 'node:buffer', 'node:util', 'node:http', 'node:https',
+        'node:readline', 'node:zlib', 'node:assert', 'node:dns',
+        'node:net', 'node:tls', 'node:module',
 
-        'node:fs', 'node:path', 'node:os', 'node:util', 'node:url',
-        'node:crypto', 'node:stream', 'node:child_process', 'node:events',
-        'node:buffer', 'node:readline', 'node:worker_threads', 'node:http',
-        'node:https', 'node:dns', 'node:net', 'node:tls'
-        
-        // 🔥 We intentionally do NOT externalize puppeteer
-      ]
-    }
+        // Major automation deps
+        'puppeteer', 'puppeteer-core', '@puppeteer/browsers', 'playwright',
+        'proxy-agent', 'get-uri', 'pac-resolver', 'basic-ftp',
+        '@tootallnate/quickjs-emscripten', 'smart-buffer'
+      ],
+    },
   },
 
-  define: {
-    global: 'globalThis'
-  },
-
+  // Prevent Vite from pre-optimizing Node modules
   optimizeDeps: {
-    // Prevent pre-bundling Puppeteer (just in case)
-    exclude: ['puppeteer']
-  }
+    exclude: [
+      'puppeteer', 'puppeteer-core', '@puppeteer/browsers', 'playwright'
+    ]
+  },
+
+  assetsInclude: [
+    '**/*.py',
+    '**/*.gemini'
+  ],
+  define: {
+    global: 'globalThis',
+  },
 })
