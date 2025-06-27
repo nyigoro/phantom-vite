@@ -176,6 +176,7 @@ func main() {
 			fmt.Printf("  ✅ %s\n", path)
 		}
 	}
+}
 	default: {
 		script := os.Args[1]
 		fmt.Println("[Phantom Vite] Running script:", script)
