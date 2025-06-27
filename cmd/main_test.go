@@ -7,55 +7,42 @@ func writeTempScript(url string) (string, error) {
 	pluginsJSON, _ := json.Marshal(cfg.Plugins)
 
 	code := fmt.Sprintf(`import puppeteer from 'puppeteer';
-import path from 'path';
-import { pathToFileURL } from 'url';
-import fs from 'fs';
 
-console.log("[Phantom Vite] Loading plugins...");
-const pluginPaths = %s;
+const pluginPaths = process.env["PHANTOM_PLUGINS"]?.split(",") ?? [];
 const plugins = [];
 
-for (const pluginPath of pluginPaths) {
-  if (!fs.existsSync(pluginPath)) {
-    console.warn("[Plugin] Not found:", pluginPath);
-    continue;
-  }
-
+for (const path of pluginPaths) {
   try {
-    const plugin = await import(pathToFileURL(pluginPath).href);
-    if (!plugin.onStart && !plugin.onPageLoad && !plugin.onExit) {
-      console.warn("[Plugin] No valid hooks in:", pluginPath);
-      continue;
-    }
-    plugins.push(plugin);
-    console.log("[Plugin] Loaded:", pluginPath);
-  } catch (err) {
-    console.error("[Plugin] Failed to load:", pluginPath, "-", err.message);
+    const mod = await import(path);
+    plugins.push(mod);
+  } catch (e) {
+    console.error("[Phantom Vite] Failed to load plugin:", path, e);
   }
 }
 
-for (const plugin of plugins) {
-  if (plugin.onStart) await plugin.onStart();
-}
+(async () => {
+  for (const p of plugins) {
+    if (typeof p.onStart === 'function') await p.onStart();
+  }
 
-const browser = await puppeteer.launch({ headless: true });
-const page = await browser.newPage();
-await page.goto('%s');
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
 
-for (const plugin of plugins) {
-  if (plugin.onPageLoad) await plugin.onPageLoad(page);
-}
+  const url = '%s';
+  await page.goto(url);
 
-await page.screenshot({ path: 'screenshot.png' });
+  for (const p of plugins) {
+    if (typeof p.onPageLoad === 'function') await p.onPageLoad(page);
+  }
 
-await browser.close();
+  const title = await page.title();
+  console.log("[Phantom Vite] Title:", title);
+  await page.screenshot({ path: 'screenshot.png' });
 
-for (const plugin of plugins) {
-  if (plugin.onExit) await plugin.onExit();
-}
-`, string(pluginsJSON), url)
+  await browser.close();
 
-	tmpFile := "phantom-open.js"
-	err := os.WriteFile(tmpFile, []byte(code), 0644)
-	return tmpFile, err
-}
+  for (const p of plugins) {
+    if (typeof p.onExit === 'function') await p.onExit();
+  }
+})();
+`, url)
