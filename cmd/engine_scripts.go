@@ -2,12 +2,9 @@
 package main
 
 import (
-    "encoding/json"
     "fmt"
     "os"
-    "os/exec"
     "path/filepath"
-    "strings"
 )
 
 func writePuppeteerScript(url string) (string, error) {
