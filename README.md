@@ -99,5 +99,5 @@ phantom-vite/
 ## 📄 License
 
 MIT — PhantomJS-inspired, Gemini-powered, developer-first.
-
+@nyigoro
 ```
