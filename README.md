@@ -56,7 +56,6 @@ phantom-vite myscript.js
 ## 🧠 Config (Optional)
 
 ```json
-// phantomvite.config //
 {
   "headless": true,
   "viewport": {
@@ -99,5 +98,6 @@ phantom-vite/
 ## 📄 License
 
 MIT — PhantomJS-inspired, Gemini-powered, developer-first.
+
 @nyigoro
 ```
