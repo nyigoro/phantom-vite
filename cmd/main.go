@@ -40,6 +40,14 @@ func runNodeScript(script string) error {
 	return cmd.Run()
 }
 
+func runGeminiPrompt(prompt string) error {
+	cmd := exec.Command("gemini", prompt)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
+	return cmd.Run()
+}
+
 func runPythonScript(script string) error {
 	cmd := exec.Command("python3", script) // Or python for Windows
 	cmd.Stdout = os.Stdout
@@ -145,30 +153,24 @@ func main() {
 
 	switch os.Args[1] {
 	case "open": {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: phantom-vite open <url>")
-		os.Exit(1)
-	}
-	url := os.Args[2]
-	fmt.Println("[Phantom Vite] Opening URL:", url)
-
-	// Load config and set plugins (if any)
-	cfg := loadConfig()
-	if len(cfg.Plugins) > 0 {
-		pluginPaths := strings.Join(cfg.Plugins, ",")
-		os.Setenv("PHANTOM_PLUGINS", pluginPaths)
-	}
-
-	tmpScript, err := writeTempScript(url)
+	if command == "open" && len(args) >= 2 {
+	url := args[1]
+	tempScript, err := writeTempScript(url)
 	if err != nil {
-		fmt.Println("Error writing temp script:", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
-	defer os.Remove(tmpScript)
 
-	if err := runNodeScript(tmpScript); err != nil {
-		fmt.Println("Error running Puppeteer:", err)
-		os.Exit(1)
+	// New: select engine
+	engine := "puppeteer" // default
+	for i, arg := range args {
+		if arg == "--engine" && i+1 < len(args) {
+			engine = args[i+1]
+		}
+	}
+
+	err = runScriptWithEngine(engine, tempScript)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 	case "build": {
