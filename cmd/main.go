@@ -9,6 +9,29 @@ import (
 	"path/filepath"
 )
 
+engine := "puppeteer" // default
+
+for i, arg := range args {
+	if arg == "--engine" && i+1 < len(args) {
+		engine = args[i+1]
+	}
+}
+
+func runScriptWithEngine(engine, scriptPath string) error {
+	fmt.Println("[Phantom Vite] Running with engine:", engine)
+
+	switch engine {
+	case "puppeteer", "playwright":
+		return runNodeScript(scriptPath)
+	case "selenium":
+		return runPythonScript(scriptPath)
+	case "gemini":
+		return runGeminiPrompt(scriptPath)
+	default:
+		return fmt.Errorf("unknown engine: %s", engine)
+	}
+}
+
 func runNodeScript(script string, args ...string) error {
 	cmdArgs := append([]string{script}, args...)
 	cmd := exec.Command("node", cmdArgs...)
