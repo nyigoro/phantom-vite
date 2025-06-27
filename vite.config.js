@@ -1,57 +1,50 @@
-// vite.config.js
 import { defineConfig } from 'vite'
 import fs from 'fs'
 import path from 'path'
+import { virtualPluginLoader } from './vite.plugins.virtual.js' 
 
 const configPath = './phantomvite.config.json'
-let entries = ['scripts/example.ts'] // fallback
+let entries = ['scripts/example.ts'] 
 
 try {
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-    if (Array.isArray(config.entries)) entries = config.entries
-    else if (Array.isArray(config.entry)) entries = config.entry
-    else if (typeof config.entry === 'string') entries = [config.entry]
+
+    // entries > entry[] > entry string
+    if (Array.isArray(config.entries)) {
+      entries = config.entries
+    } else if (Array.isArray(config.entry)) {
+      entries = config.entry
+    } else if (typeof config.entry === 'string') {
+      entries = [config.entry]
+    }
   }
 } catch (e) {
   console.warn('[Phantom Vite] Failed to parse config:', e)
 }
 
-// Validate existence
-const validEntries = []
-entries.forEach(entry => {
-  if (fs.existsSync(entry)) validEntries.push(entry)
-  else console.warn(`❌ Missing: ${entry}`)
-})
-if (validEntries.length === 0) {
-  console.error('[Phantom Vite] No valid entries found.')
-  process.exit(1)
-}
-
-// Map entries to { [name]: path }
 const input = {}
-validEntries.forEach(entry => {
-  const name = path.basename(entry, path.extname(entry))
-  input[name] = entry
+entries.forEach(entry => {
+  if (fs.existsSync(entry)) {
+    const name = path.basename(entry, path.extname(entry))
+    input[name] = entry
+  } else {
+    console.warn(`[Phantom Vite] Missing entry file: ${entry}`)
+  }
 })
 
-// Toggle bundling
-const shouldBundle = process.env.BUNDLE === 'true'
-
-// Node.js built-ins
+// External Node.js built-ins
 const NODE_BUILTINS = [
-  'fs', 'path', 'http', 'https', 'url', 'util', 'os', 'dns',
-  'net', 'tls', 'stream', 'buffer', 'crypto', 'events',
-  'child_process', 'readline', 'worker_threads',
-  // Node with 'node:' prefix
-  ...[
-    'fs', 'path', 'http', 'https', 'url', 'util', 'os', 'dns',
-    'net', 'tls', 'stream', 'buffer', 'crypto', 'events',
-    'child_process', 'readline', 'worker_threads'
-  ].map(m => `node:${m}`)
+  'fs', 'path', 'http', 'https', 'url', 'util', 'os', 'dns', 'net', 'tls', 'stream',
+  'buffer', 'crypto', 'events', 'child_process', 'readline', 'worker_threads',
+  'module',
+  'node:fs', 'node:path', 'node:child_process', 'node:fs/promises',
+  'node:url', 'node:stream', 'node:readline', 'node:process',
+  'node:crypto', 'node:dns', 'node:events', 'node:buffer', 'node:assert'
 ]
 
 export default defineConfig({
+  plugins: [virtualPluginLoader()],
   build: {
     target: 'node22',
     lib: {
@@ -63,12 +56,7 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     rollupOptions: {
-      external: shouldBundle ? [] : (id => {
-        return NODE_BUILTINS.includes(id) ||
-               /^puppeteer/.test(id) ||
-               /^playwright/.test(id) ||
-               /^selenium/.test(id)
-      }),
+      external: NODE_BUILTINS,
       output: {
         format: 'es',
         entryFileNames: '[name].js',
