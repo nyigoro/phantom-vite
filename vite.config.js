@@ -58,6 +58,18 @@ validEntries.forEach(entry => {
   input[name] = entry
 })
 
+// Define Node.js built-in modules that should always be external
+const NODE_BUILTINS = [
+  'fs', 'path', 'http', 'https', 'url', 'util', 'os', 'dns', 
+  'net', 'tls', 'stream', 'buffer', 'crypto', 'events',
+  'child_process', 'readline', 'worker_threads',
+  // Node.js built-ins with node: prefix
+  'node:fs', 'node:path', 'node:http', 'node:https', 'node:url', 
+  'node:util', 'node:os', 'node:dns', 'node:net', 'node:tls',
+  'node:stream', 'node:buffer', 'node:crypto', 'node:events',
+  'node:child_process', 'node:readline', 'node:worker_threads',
+];
+
 export default defineConfig({
   build: {
     // Target Node.js environment
@@ -70,36 +82,21 @@ export default defineConfig({
     
     outDir: 'dist',
     emptyOutDir: false,
-    minify: false,
+    minify: false, // Keep false for debugging, true for production
     sourcemap: true,
     
     rollupOptions: {
-      // Mark Node.js built-ins and large dependencies as external
-      external: [
-        // Node.js built-ins
-        'fs', 'path', 'http', 'https', 'url', 'util', 'os', 'dns', 
-        'net', 'tls', 'stream', 'buffer', 'crypto', 'events',
-        'child_process', 'readline', 'worker_threads',
-        
-        // Node.js built-ins with node: prefix
-        'node:fs', 'node:path', 'node:http', 'node:https', 'node:url', 
-        'node:util', 'node:os', 'node:dns', 'node:net', 'node:tls',
-        'node:stream', 'node:buffer', 'node:crypto', 'node:events',
-        'node:child_process', 'node:readline', 'node:worker_threads',
-        
-        // Puppeteer and related packages
-        'puppeteer', 'puppeteer-core', '@puppeteer/browsers',
-        
-        // Other Node.js-only packages
-        'proxy-agent', 'get-uri', 'pac-resolver', 'basic-ftp',
-        '@tootallnate/quickjs-emscripten', 'smart-buffer'
-      ],
+      // ONLY mark Node.js built-ins as external.
+      // All other npm dependencies will now be bundled into the output.
+      external: NODE_BUILTINS,
       
       output: {
         format: 'es',
         entryFileNames: '[name].js',
-        // Preserve module structure for Node.js
-        preserveModules: false
+        // Preserve module structure for Node.js - this generally means
+        // that each entry file will result in its own output file,
+        // but its dependencies will be bundled into it or shared chunks.
+        preserveModules: false 
       }
     }
   },
@@ -109,7 +106,9 @@ export default defineConfig({
     global: 'globalThis',
   },
   
-  // Enable Node.js polyfills if needed
+  // OptimizeDeps is for dev server, not production build, but keep it
+  // if you're not seeing issues in dev.
+  // We don't need to exclude puppeteer etc here for build, as Rollup's external handles it.
   optimizeDeps: {
     // Skip pre-bundling for Node.js dependencies
     exclude: ['puppeteer', 'puppeteer-core', '@puppeteer/browsers']
