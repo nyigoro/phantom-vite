@@ -32,11 +32,19 @@ func runScriptWithEngine(engine, scriptPath string) error {
 	}
 }
 
-func runNodeScript(script string, args ...string) error {
-	cmdArgs := append([]string{script}, args...)
-	cmd := exec.Command("node", cmdArgs...)
+func runNodeScript(script string) error {
+	cmd := exec.Command("node", script)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ() // Pass PHANTOM_PLUGINS etc.
+	return cmd.Run()
+}
+
+func runPythonScript(script string) error {
+	cmd := exec.Command("python3", script) // Or python for Windows
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
 	return cmd.Run()
 }
 
