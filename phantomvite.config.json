@@ -8,7 +8,6 @@
     "plugins/logger.js",
     "plugins/seo.js"
   ],
-  "entry": "scripts/example.ts",
   "entries": [
     "scripts/puppet-test.ts"
   ]
