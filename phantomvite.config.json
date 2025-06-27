@@ -8,8 +8,9 @@
     "plugins/logger.js",
     "plugins/seo.js"
   ],
-  "entry": [
+  "entry": "scripts/example.ts",
+  "entries": [
     "scripts/puppet-test.ts",
     "scripts/example.ts"
-    ]
+  ]
 }
