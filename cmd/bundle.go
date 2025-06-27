@@ -1,3 +1,5 @@
+package main
+
 func bundleEngineScript(file string, engine string) error {
     // Auto-detect engine if empty
     if engine == "" {
