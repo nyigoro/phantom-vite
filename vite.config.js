@@ -1,50 +1,70 @@
-// vite.config.js - Node.js compatible build
+// vite.config.js - Multi-entry Node.js compatible build
 import { defineConfig } from 'vite'
 import fs from 'fs'
+import path from 'path'
 
-let entryFile = 'scripts/example.ts'
 const configPath = './phantomvite.config.json'
+let entries = ['scripts/example.ts'] // default fallback
 
 try {
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
     
-    // Handle both string and array entries
-    if (typeof config.entry === 'string') {
-      entryFile = config.entry
-    } else if (Array.isArray(config.entry) && config.entry.length > 0) {
-      entryFile = config.entry[0]
-      console.log(`[Phantom Vite] Using first entry: ${entryFile}`)
+    // Priority order: entries array > entry array > entry string
+    if (Array.isArray(config.entries)) {
+      entries = config.entries
+      console.log(`[Phantom Vite] Found ${entries.length} entries in config.entries`)
+    } else if (Array.isArray(config.entry)) {
+      entries = config.entry
+      console.log(`[Phantom Vite] Found ${entries.length} entries in config.entry`)
+    } else if (typeof config.entry === 'string') {
+      entries = [config.entry]
+      console.log(`[Phantom Vite] Found single entry: ${config.entry}`)
     }
   }
 } catch (e) {
   console.warn('[Phantom Vite] Failed to parse config:', e)
 }
 
-// Check if entry file exists
-if (!fs.existsSync(entryFile)) {
-  console.error(`[Phantom Vite] Entry file not found: ${entryFile}`)
-  console.log('[Phantom Vite] Available files in scripts/:')
-  try {
-    const scriptsDir = 'scripts'
-    if (fs.existsSync(scriptsDir)) {
-      const files = fs.readdirSync(scriptsDir)
-      files.forEach(file => console.log(`  - ${scriptsDir}/${file}`))
-    }
-  } catch (e) {
-    console.log('  (could not read scripts directory)')
+// Validate that all entry files exist
+const validEntries = []
+const missingEntries = []
+
+entries.forEach(entry => {
+  if (fs.existsSync(entry)) {
+    validEntries.push(entry)
+  } else {
+    missingEntries.push(entry)
   }
+})
+
+if (missingEntries.length > 0) {
+  console.warn('[Phantom Vite] Missing entry files:')
+  missingEntries.forEach(entry => console.warn(`  ❌ ${entry}`))
 }
+
+if (validEntries.length === 0) {
+  console.error('[Phantom Vite] No valid entry files found! Check your phantomvite.config.json')
+  process.exit(1)
+}
+
+console.log('[Phantom Vite] Building entries:')
+validEntries.forEach(entry => console.log(`  ✅ ${entry}`))
+
+// Build input object for multiple entries
+const input = {}
+validEntries.forEach(entry => {
+  const name = path.basename(entry, path.extname(entry))
+  input[name] = entry
+})
 
 export default defineConfig({
   build: {
     // Target Node.js environment
-    target: 'node20',
+    target: 'node22',
     
     lib: {
-      entry: entryFile,
-      name: 'PhantomScript',
-      fileName: () => entryFile.split('/').pop().replace(/\.(ts|js)$/, ''),
+      entry: input,
       formats: ['es']
     },
     
