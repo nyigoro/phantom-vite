@@ -10,7 +10,6 @@
   ],
   "entry": "scripts/example.ts",
   "entries": [
-    "scripts/puppet-test.ts",
-    "scripts/example.ts"
+    "scripts/puppet-test.ts"
   ]
 }
