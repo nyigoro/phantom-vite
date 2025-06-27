@@ -61,6 +61,7 @@ func resolveCommand(name string) string {
 // ✅ Config definition moved outside main
 type Config struct {
 	Headless bool `json:"headless"`
+        Plugins  []string `json:"plugins"`
 }
 
 func loadConfig() Config {
