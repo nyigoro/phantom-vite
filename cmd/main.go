@@ -213,7 +213,7 @@ case "open":
     }
 
     inputFile := args[1]
-    engine := "puppeteer" // default
+    engine := ""
 
     if len(args) > 3 && args[2] == "--engine" {
         engine = args[3]
@@ -225,7 +225,7 @@ case "open":
         return
     }
 
-    fmt.Println("📦 Bundled", inputFile, "for", engine)
+    fmt.Println("📦 Bundled", inputFile, "for engine:", engine)
 	case "agent": {
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: phantom-vite agent <prompt>")
