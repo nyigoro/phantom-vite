@@ -1,0 +1,3 @@
+# Gemini test file
+gemini open https://example.com
+gemini expect-title "Example Domain"
