@@ -107,14 +107,15 @@ func main() {
 		fmt.Println("Usage: phantom-vite open <url>")
 		os.Exit(1)
 	}
-
-	if !puppeteerInstalled() {
-		fmt.Println("[Phantom Vite] Puppeteer not found. Please run: npm install puppeteer")
-		os.Exit(1)
-	}
-
 	url := os.Args[2]
 	fmt.Println("[Phantom Vite] Opening URL:", url)
+
+	// Load config and set plugins (if any)
+	cfg := loadConfig()
+	if len(cfg.Plugins) > 0 {
+		pluginPaths := strings.Join(cfg.Plugins, ",")
+		os.Setenv("PHANTOM_PLUGINS", pluginPaths)
+	}
 
 	tmpScript, err := writeTempScript(url)
 	if err != nil {
