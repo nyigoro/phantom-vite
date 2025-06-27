@@ -4,9 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 	"encoding/json"
-	"os/exec"
 	"path/filepath"
 )
 
