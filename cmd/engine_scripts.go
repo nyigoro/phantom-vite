@@ -2,14 +2,16 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
+    "encoding/json"
+    "fmt"
+    "os"
+    "os/exec"
+    "path/filepath"
+    "strings"
 )
 
 func writePuppeteerScript(url string) (string, error) {
 	cfg := loadConfig()
-	pluginsJSON, _ := json.Marshal(cfg.Plugins)
 
 	script := fmt.Sprintf(`import puppeteer from 'puppeteer';
 
