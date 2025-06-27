@@ -1,4 +1,9 @@
-import puppeteer from 'puppeteer';
+import plugins from 'virtual:phantom-plugins'
+
+// Use hooks:
+for (const plugin of plugins) {
+  if (typeof plugin.onStart === 'function') await plugin.onStart()
+}
 
 (async () => {
   console.log("[Phantom Vite] Launching headless browser...");
