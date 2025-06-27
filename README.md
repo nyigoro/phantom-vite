@@ -56,7 +56,7 @@ phantom-vite myscript.js
 ## 🧠 Config (Optional)
 
 ```json
-//*phantomvite.config.json*//
+// phantomvite.config //
 {
   "headless": true,
   "viewport": {
