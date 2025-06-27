@@ -41,6 +41,14 @@ func runViteBuild() error {
 	return cmd.Run()
 }
 
+func puppeteerInstalled() bool {
+	info, err := os.Stat("node_modules/puppeteer")
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
 func resolveCommand(name string) string {
 	if os.PathSeparator == '\\' {
 		if name == "python3" {
@@ -76,25 +84,31 @@ func main() {
 
 	switch os.Args[1] {
 	case "open": {
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: phantom-vite open <url>")
-			os.Exit(1)
-		}
-		url := os.Args[2]
-		fmt.Println("[Phantom Vite] Opening URL:", url)
-
-		tmpScript, err := writeTempScript(url)
-		if err != nil {
-			fmt.Println("Error writing temp script:", err)
-			os.Exit(1)
-		}
-		defer os.Remove(tmpScript)
-
-		if err := runNodeScript(tmpScript); err != nil {
-			fmt.Println("Error running Puppeteer:", err)
-			os.Exit(1)
-		}
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: phantom-vite open <url>")
+		os.Exit(1)
 	}
+
+	if !puppeteerInstalled() {
+		fmt.Println("[Phantom Vite] Puppeteer not found. Please run: npm install puppeteer")
+		os.Exit(1)
+	}
+
+	url := os.Args[2]
+	fmt.Println("[Phantom Vite] Opening URL:", url)
+
+	tmpScript, err := writeTempScript(url)
+	if err != nil {
+		fmt.Println("Error writing temp script:", err)
+		os.Exit(1)
+	}
+	defer os.Remove(tmpScript)
+
+	if err := runNodeScript(tmpScript); err != nil {
+		fmt.Println("Error running Puppeteer:", err)
+		os.Exit(1)
+	}
+}
 	case "build": {
 		if err := runViteBuild(); err != nil {
 			fmt.Println("Vite build failed:", err)
