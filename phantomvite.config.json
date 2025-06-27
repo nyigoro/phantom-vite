@@ -4,5 +4,8 @@
     "width": 1280,
     "height": 720
   },
-  "plugins": ["plugins/logger.js"]
+  "plugins": [
+    "plugins/logger.js",
+    "plugins/seo.js"
+  ]
 }
