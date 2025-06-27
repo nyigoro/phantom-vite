@@ -1,36 +1,39 @@
-import fs from 'fs'
+import { defineConfig } from 'vite'
+import path from 'path'
 
-export function virtualPluginLoader(configPath = './phantomvite.config.json') {
-  const virtualId = 'virtual:phantom-plugins'
-  const resolvedVirtualId = '\0' + virtualId
+const entryFile = process.env.PHANTOM_ENTRY || 'scripts/example.ts'
+const name = path.basename(entryFile, path.extname(entryFile))
 
-  return {
-    name: 'phantom-vite-virtual-plugin-loader',
-
-    resolveId(id) {
-      if (id === virtualId) {
-        return resolvedVirtualId
-      }
+export default defineConfig({
+  build: {
+    target: 'node22',
+    lib: {
+      entry: entryFile,
+      name: 'PhantomScript',
+      fileName: () => `${name}`,
+      formats: ['es']
     },
-
-    load(id) {
-      if (id === resolvedVirtualId) {
-        try {
-          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-          const plugins = Array.isArray(config.plugins) ? config.plugins : []
-
-          const imports = plugins
-            .map((p, i) => `import * as plugin${i} from '${p}'`)
-            .join('\n')
-
-          const exports = `export default [${plugins.map((_, i) => `plugin${i}`).join(', ')}]`
-
-          return `${imports}\n\n${exports}`
-        } catch (e) {
-          console.warn('[Phantom Vite] Failed to load plugins for virtual module:', e)
-          return `export default []`
-        }
+    outDir: 'dist',
+    emptyOutDir: false,
+    sourcemap: true,
+    minify: false,
+    rollupOptions: {
+      external: [
+        'puppeteer', 'puppeteer-core', 'playwright',
+        'fs', 'path', 'os', 'child_process',
+        'node:fs', 'node:path', 'node:os', 'node:child_process'
+      ],
+      output: {
+        entryFileNames: '[name].js',
+        format: 'es',
+        preserveModules: false
       }
     }
+  },
+  define: {
+    global: 'globalThis'
+  },
+  optimizeDeps: {
+    exclude: ['puppeteer', 'playwright']
   }
-}
+})
