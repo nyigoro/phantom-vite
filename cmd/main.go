@@ -9,15 +9,9 @@ import (
 	"strings"
 )
 
-type Viewport struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
 type Config struct {
 	Headless bool     `json:"headless"`
 	Plugins  []string `json:"plugins"`
-	Viewport Viewport `json:"viewport"`
 }
 
 func loadConfig() Config {
@@ -37,7 +31,7 @@ func writeTempScript(url string, engine string) (string, error) {
   const page = await browser.newPage();
   await page.goto('%s');
   const title = await page.title();
-  console.log("[Phantom Vite] Title:", title);
+  console.log("[Puppeteer] Page title:", title);
   await page.screenshot({ path: 'screenshot.png' });
   await browser.close();
 })();`, url)
@@ -48,29 +42,25 @@ func writeTempScript(url string, engine string) (string, error) {
 }
 
 func runEngineScript(path, engine string) {
-	switch engine {
-	case "puppeteer", "playwright":
-		cmd := exec.Command("node", path)
+	if engine == "selenium" {
+		cmd := exec.Command(resolveCommand("python3"), path)
+		cmd.Dir = "runtime-python"
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Run()
-	case "selenium":
-		cmd := exec.Command("python3", path)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Run()
-	case "gemini":
-		cmd := exec.Command("gemini", path)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Run()
-	default:
-		fmt.Println("❌ Unknown engine:", engine)
+		return
 	}
+
+	cmd := exec.Command("node", path)
+	cmd.Dir = "runtime"
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
 }
 
 func runNodeScript(script string) error {
 	cmd := exec.Command("node", script)
+	cmd.Dir = "runtime"
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
@@ -87,6 +77,7 @@ func runGeminiPrompt(prompt string) error {
 
 func runPythonScript(script string) error {
 	cmd := exec.Command("python3", script)
+	cmd.Dir = "runtime-python"
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
@@ -102,24 +93,15 @@ func runViteBuild() error {
 }
 
 func runViteBundle(entry string) error {
-	base := strings.TrimSuffix(filepath.Base(entry), filepath.Ext(entry))
-	outFile := fmt.Sprintf("dist/%s.js", base)
-
 	fmt.Println("[Phantom Vite] Bundling:", entry)
-	cmd := exec.Command("npx", "vite", "build",
-		"--config", "vite.config.js",
-		"--entry", entry,
-		"--outDir", "dist",
-		"--rollupOptions.output.file", outFile,
-	)
-
+	cmd := exec.Command("npx", "vite", "build")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
 func puppeteerInstalled() bool {
-	info, err := os.Stat("node_modules/puppeteer")
+	info, err := os.Stat("runtime/node_modules/puppeteer")
 	if err != nil {
 		return false
 	}
@@ -133,6 +115,15 @@ func resolveCommand(name string) string {
 		}
 	}
 	return name
+}
+
+func bundleIfTs(file string) error {
+	ext := filepath.Ext(file)
+	if ext == ".ts" {
+		fmt.Println("[Phantom Vite] Detected TypeScript, bundling...")
+		return runViteBundle(file)
+	}
+	return nil
 }
 
 func main() {
@@ -278,6 +269,14 @@ func main() {
 
 	default:
 		script := os.Args[1]
+		ext := filepath.Ext(script)
+		if ext == ".ts" {
+			if err := bundleIfTs(script); err != nil {
+				fmt.Println("❌ Failed to bundle:", err)
+				return
+			}
+			script = "dist/" + strings.TrimSuffix(filepath.Base(script), ".ts") + ".js"
+		}
 		fmt.Println("[Phantom Vite] Running script:", script)
 		if err := runNodeScript(script); err != nil {
 			fmt.Println("Script error:", err)
