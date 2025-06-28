@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// Updated Config struct with Viewport field
 type Config struct {
 	Headless bool     `json:"headless"`
 	Plugins  []string `json:"plugins"`
@@ -22,7 +21,6 @@ type Config struct {
 func loadConfig() Config {
 	data, err := os.ReadFile("phantomvite.config.json")
 	if err != nil {
-		// Return default config with default viewport
 		return Config{
 			Headless: true,
 			Viewport: struct {
@@ -48,7 +46,6 @@ func loadConfig() Config {
 	return cfg
 }
 
-// Rest of your code remains the same...
 func writeTempScript(url string, engine string) (string, error) {
 	code := fmt.Sprintf(`import puppeteer from 'puppeteer';
 (async () => {
@@ -83,9 +80,15 @@ func runEngineScript(path, engine string) {
 	cmd.Run()
 }
 
+// Updated runNodeScript to handle both regular scripts and bundled scripts
 func runNodeScript(script string) error {
 	cmd := exec.Command("node", script)
-	cmd.Dir = "runtime"
+	
+	// Only change to runtime directory for scripts that aren't bundled
+	if !strings.HasPrefix(script, "dist/") && !strings.HasPrefix(script, "../dist/") {
+		cmd.Dir = "runtime"
+	}
+	
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
@@ -118,11 +121,11 @@ func runViteBuild() error {
 }
 
 func runViteBundle(entry string) error {
-    fmt.Println("[Phantom Vite] Bundling:", entry)
-    cmd := exec.Command("npx", "vite", "build", "--outDir", "runtime/dist")
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
-    return cmd.Run()
+	fmt.Println("[Phantom Vite] Bundling:", entry)
+	cmd := exec.Command("npx", "vite", "build")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func puppeteerInstalled() bool {
@@ -149,6 +152,12 @@ func bundleIfTs(file string) error {
 		return runViteBundle(file)
 	}
 	return nil
+}
+
+// Helper function to check if a file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func main() {
@@ -293,28 +302,43 @@ func main() {
 		}
 
 	default:
-    script := os.Args[1]
-    ext := filepath.Ext(script)
-    if ext == ".ts" {
-        if err := bundleIfTs(script); err != nil {
-            fmt.Println("❌ Failed to bundle:", err)
-            return
-        }
-        baseName := strings.TrimSuffix(filepath.Base(script), ".ts")
-        bundledScript := "script/" + baseName + ".js"
-        
-        // Check if the bundled file exists
-        if _, err := os.Stat(bundledScript); err != nil {
-            fmt.Printf("❌ Bundled file not found: %s\n", bundledScript)
-            fmt.Println("💡 Make sure Vite is properly configured and the build succeeded")
-            return
-        }
-        script = "../" + bundledScript  // Adjust path for runtime directory
-    }
-    fmt.Println("[Phantom Vite] Running script:", script)
-    if err := runNodeScript(script); err != nil {
-        fmt.Println("Script error:", err)
-        os.Exit(1)
-    		}
+		script := os.Args[1]
+		ext := filepath.Ext(script)
+		
+		if ext == ".ts" {
+			fmt.Println("[Phantom Vite] Detected TypeScript file, bundling...")
+			if err := bundleIfTs(script); err != nil {
+				fmt.Println("❌ Failed to bundle:", err)
+				return
+			}
+			
+			// Determine the expected output file name
+			baseName := strings.TrimSuffix(filepath.Base(script), ".ts")
+			bundledScript := "dist/" + baseName + ".js"
+			
+			// Check if the bundled file exists
+			if !fileExists(bundledScript) {
+				fmt.Printf("❌ Bundled file not found: %s\n", bundledScript)
+				fmt.Println("💡 Make sure Vite build completed successfully")
+				
+				// Try to list what's actually in the dist directory
+				if files, err := os.ReadDir("dist"); err == nil {
+					fmt.Println("📁 Files in dist directory:")
+					for _, file := range files {
+						fmt.Printf("  - %s\n", file.Name())
+					}
+				}
+				return
+			}
+			
+			script = bundledScript
+			fmt.Printf("✅ Using bundled script: %s\n", script)
+		}
+		
+		fmt.Println("[Phantom Vite] Running script:", script)
+		if err := runNodeScript(script); err != nil {
+			fmt.Println("Script error:", err)
+			os.Exit(1)
+		}
 	}
-} 
+}
