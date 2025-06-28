@@ -9,7 +9,7 @@ import (
 func TestLoadPlugins_ValidPaths(t *testing.T) {
 	tempPlugin := "plugins/test-plugin.js"
 
-	// Create a dummy plugin file
+	// Create dummy plugin file
 	err := os.MkdirAll(filepath.Dir(tempPlugin), 0755)
 	if err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
