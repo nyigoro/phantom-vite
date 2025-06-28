@@ -661,54 +661,63 @@ func main() {
 			}
 		}
 
-	default:
-		script := os.Args[1]
-		
-		if !fileExists(script) {
-			fmt.Printf("❌ Script not found: %s\n", script)
-			fmt.Println("💡 Make sure the file path is correct")
+default:
+	script := os.Args[1]
+
+	if !fileExists(script) {
+		fmt.Printf("❌ Script not found: %s\n", script)
+		fmt.Println("💡 Make sure the file path is correct")
+		return
+	}
+
+	ext := filepath.Ext(script)
+
+	if ext == ".ts" {
+		fmt.Printf("🔧 TypeScript detected, bundling %s...\n", script)
+
+		if err := runViteBundle(script); err != nil {
+			fmt.Printf("❌ Failed to bundle: %v\n", err)
 			return
 		}
-		
-		ext := filepath.Ext(script)
-		
-		if ext == ".ts" {
-			fmt.Printf("🔧 TypeScript detected, bundling %s...\n", script)
-			
-			if err := runViteBundle(script); err != nil {
-				fmt.Printf("❌ Failed to bundle: %v\n", err)
-				return
-			}
-			
-			// Determine bundled file location
-			baseName := strings.TrimSuffix(filepath.Base(script), ".ts")
-			bundledScript := filepath.Join("dist", baseName+".js")
-			
-			if !fileExists(bundledScript) {
-				fmt.Printf("❌ Bundled file not found: %s\n", bundledScript)
-				
-				// List dist directory contents for debugging
-				if files, err := os.ReadDir("dist"); err == nil {
-					fmt.Println("📁 Files in dist directory:")
-					for _, file := range files {
-						fmt.Printf("  - %s\n", file.Name())
-					}
+
+		baseName := strings.TrimSuffix(filepath.Base(script), ".ts")
+		bundledScript := filepath.Join("dist", baseName+".js")
+
+		if !fileExists(bundledScript) {
+			fmt.Printf("❌ Bundled file not found: %s\n", bundledScript)
+			if files, err := os.ReadDir("dist"); err == nil {
+				fmt.Println("📁 Files in dist directory:")
+				for _, file := range files {
+					fmt.Printf("  - %s\n", file.Name())
 				}
-				return
 			}
-			
-			script = bundledScript
-			fmt.Printf("✅ Using bundled script: %s\n", script)
+			return
 		}
-		
-		fmt.Printf("🚀 Running script: %s\n", script)
-		start := time.Now()
-		
-		if err := runNodeScript(script); err != nil {
-			fmt.Printf("❌ Script execution failed: %v\n", err)
-			os.Exit(1)
-		}
-		
-		fmt.Printf("✅ Script completed in %v\n", time.Since(start))
+
+		script = bundledScript
+		fmt.Printf("✅ Using bundled script: %s\n", script)
+	}
+
+	fmt.Printf("🚀 Running script: %s\n", script)
+	start := time.Now()
+
+	// ✅ Inject context before running the script
+	context := PluginContext{
+		Engine:   cfg.Engine,
+		Headless: cfg.Headless,
+		Plugins:  cfg.Plugins,
+		Timeout:  cfg.Timeout,
+		Viewport: cfg.Viewport,
+	}
+	pluginPaths, _ := LoadPlugins(cfg)
+	ExecutePluginHooksWithContext("onStart", pluginPaths, context)
+
+	if err := runNodeScript(script); err != nil {
+		fmt.Printf("❌ Script execution failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	ExecutePluginHooks("onExit", pluginPaths)
+	fmt.Printf("✅ Script completed in %v\n", time.Since(start))
 	}
 }
