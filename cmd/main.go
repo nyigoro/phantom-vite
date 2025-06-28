@@ -31,6 +31,15 @@ type EngineStatus struct {
 	Error     string
 }
 
+type PluginContext struct {
+	URL      string        `json:"url,omitempty"`
+	Engine   string        `json:"engine"`
+	Headless bool          `json:"headless"`
+	Viewport interface{}   `json:"viewport"`
+	Timeout  int           `json:"timeout"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
 func loadConfig() Config {
 	data, err := os.ReadFile("phantomvite.config.json")
 	if err != nil {
@@ -160,19 +169,26 @@ func init() {
 	injectPluginContext()
 }
 
-func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, context map[string]interface{}) {
+func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, ctx PluginContext) {
+	payload, _ := json.Marshal(ctx)
+
 	for _, plugin := range pluginPaths {
-		serialized, _ := json.Marshal(context)
+		importPath := plugin
+		if os.PathSeparator == '\\' && strings.HasPrefix(plugin, "D:") {
+			importPath = "file:///" + strings.ReplaceAll(plugin, "\\", "/")
+		}
+
 		cmd := exec.Command("node", "-e", fmt.Sprintf(`
 			(async () => {
-			  try {
-				const plugin = await import("%s");
-				if (plugin.%s) await plugin.%s(%s);
-			  } catch (e) {
-				console.error("[Plugin Error]", e);
-			  }
+				try {
+					const plugin = await import("%s");
+					if (plugin.%s) await plugin.%s(%s);
+				} catch (e) {
+					console.error("[Plugin Error]", e);
+				}
 			})()
-		`, plugin, hookName, hookName, string(serialized)))
+		`, importPath, hookName, hookName, string(payload)))
+
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Dir = "runtime"
