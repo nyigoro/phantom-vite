@@ -203,6 +203,19 @@ func writeTempScript(url string, engine string) (string, error) {
 	return tmpFile, err
 }
 
+func validateEngine(engine string) error {
+	status := checkEngineStatus()
+	for _, s := range status {
+		if s.Name == engine {
+			if !s.Available {
+				return fmt.Errorf("❌ Engine '%s' is not available: %s", engine, s.Error)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("❌ Unknown engine: %s", engine)
+}
+
 func runEngineScript(path, engine string) error {
 	if engine == "selenium" {
 		cmd := exec.Command(resolveCommand("python3"), path)
