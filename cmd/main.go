@@ -239,25 +239,22 @@ func runEngineScript(path, engine string) error {
 
 func runNodeScript(script string) error {
 	cmd := exec.Command("node", script)
-	
-	// Handle different script locations
-	if strings.HasPrefix(script, "dist/") {
-		// Bundled script, run from project root
-		cmd.Dir = ""
-	} else if strings.HasPrefix(script, "/") || strings.Contains(script, ":") {
-		// Absolute path, run from script directory
-		dir := filepath.Dir(script)
-		cmd.Dir = dir
+
+	// Handle absolute path
+	if filepath.IsAbs(script) {
+		cmd.Dir = filepath.Dir(script)
 		script = filepath.Base(script)
 		cmd.Args = []string{"node", script}
+	} else if strings.HasPrefix(script, "dist/") || strings.HasPrefix(script, "dist\\") {
+		// Bundled output is in project root/dist
+		cmd.Dir = "."
 	} else {
-		// Relative path, run from runtime directory
+		// Relative custom scripts assumed in runtime
 		cmd.Dir = "runtime"
 	}
-	
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
 	return cmd.Run()
 }
 
