@@ -11,8 +11,6 @@
   "entries": [
     "scripts/example.ts",
     "scripts/puppet-test.ts",
-    "scripts/gemini-test.gemini",
-    "scripts/playwright-test.ts",
-    "scripts/selenium_test.py"
+    "scripts/playwright-test.ts
   ]
 }
