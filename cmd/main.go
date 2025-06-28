@@ -234,10 +234,18 @@ func writeTempScript(url string, engine string) (string, error) {
 func runPageWithPlugins(script string, hooks []string) error {
 	cfg := loadConfig()
 	pluginPaths, _ := LoadPlugins(cfg)
+	
+	context := map[string]interface{}{
+    "engine":   cfg.Engine,
+    "headless": cfg.Headless,
+    "viewport": cfg.Viewport,
+    "timeout":  cfg.Timeout,
+    "plugins":  cfg.Plugins,
+}
 
-	for _, hook := range hooks {
-		ExecutePluginHooks(hook, pluginPaths)
-	}
+for _, hook := range hooks {
+    ExecutePluginHooksWithContext(hook, pluginPaths, context)
+}
 
 	err := runNodeScript(script)
 	ExecutePluginHooks("onExit", pluginPaths)
