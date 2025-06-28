@@ -118,11 +118,11 @@ func runViteBuild() error {
 }
 
 func runViteBundle(entry string) error {
-	fmt.Println("[Phantom Vite] Bundling:", entry)
-	cmd := exec.Command("npx", "vite", "build")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+    fmt.Println("[Phantom Vite] Bundling:", entry)
+    cmd := exec.Command("npx", "vite", "build", "--outDir", "runtime/dist")
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    return cmd.Run()
 }
 
 func puppeteerInstalled() bool {
@@ -293,19 +293,26 @@ func main() {
 		}
 
 	default:
-		script := os.Args[1]
-		ext := filepath.Ext(script)
-		if ext == ".ts" {
-			if err := bundleIfTs(script); err != nil {
-				fmt.Println("❌ Failed to bundle:", err)
-				return
-			}
-			script = "dist/" + strings.TrimSuffix(filepath.Base(script), ".ts") + ".js"
-		}
-		fmt.Println("[Phantom Vite] Running script:", script)
-		if err := runNodeScript(script); err != nil {
-			fmt.Println("Script error:", err)
-			os.Exit(1)
-		}
-	}
-}
+    script := os.Args[1]
+    ext := filepath.Ext(script)
+    if ext == ".ts" {
+        if err := bundleIfTs(script); err != nil {
+            fmt.Println("❌ Failed to bundle:", err)
+            return
+        }
+        baseName := strings.TrimSuffix(filepath.Base(script), ".ts")
+        bundledScript := "dist/" + baseName + ".js"
+        
+        // Check if the bundled file exists
+        if _, err := os.Stat(bundledScript); err != nil {
+            fmt.Printf("❌ Bundled file not found: %s\n", bundledScript)
+            fmt.Println("💡 Make sure Vite is properly configured and the build succeeded")
+            return
+        }
+        script = "../" + bundledScript  // Adjust path for runtime directory
+    }
+    fmt.Println("[Phantom Vite] Running script:", script)
+    if err := runNodeScript(script); err != nil {
+        fmt.Println("Script error:", err)
+        os.Exit(1)
+    }
