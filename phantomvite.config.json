@@ -11,6 +11,6 @@
   "entries": [
     "scripts/example.ts",
     "scripts/puppet-test.ts",
-    "scripts/playwright-test.ts
+    "scripts/playwright-test.ts"
   ]
 }
