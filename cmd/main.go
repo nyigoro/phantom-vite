@@ -122,16 +122,21 @@ func LoadPlugins(cfg Config) ([]string, error) {
 
 func ExecutePluginHooks(hookName string, pluginPaths []string) {
 	for _, plugin := range pluginPaths {
-		cmd := exec.Command("node", "-e", fmt.Sprintf(`
-			(async () => {
-			  try {
-				const plugin = await import("%s");
-				if (plugin.%s) await plugin.%s();
-			  } catch (e) {
-				console.error("[Plugin Error]", e);
-			  }
-			})()
-		`, plugin, hookName, hookName))
+importPath := plugin
+if os.PathSeparator == '\\' && strings.HasPrefix(plugin, "D:") {
+	importPath = "file:///" + strings.ReplaceAll(plugin, "\\", "/")
+}
+
+cmd := exec.Command("node", "-e", fmt.Sprintf(`
+  (async () => {
+    try {
+      const plugin = await import("%s");
+      if (plugin.%s) await plugin.%s();
+    } catch (e) {
+      console.error("[Plugin Error]", e);
+    }
+  })()
+`, importPath, hookName, hookName))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Dir = "runtime"
