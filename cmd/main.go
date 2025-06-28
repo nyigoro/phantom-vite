@@ -32,12 +32,14 @@ type EngineStatus struct {
 }
 
 type PluginContext struct {
-	URL      string        `json:"url,omitempty"`
-	Engine   string        `json:"engine"`
-	Headless bool          `json:"headless"`
-	Viewport interface{}   `json:"viewport"`
-	Timeout  int           `json:"timeout"`
-	Metadata map[string]string `json:"metadata,omitempty"`
+	Engine   string   `json:"engine"`
+	Headless bool     `json:"headless"`
+	Plugins  []string `json:"plugins"`
+	Timeout  int      `json:"timeout"`
+	Viewport struct {
+		Width  int `json:"width"`
+		Height int `json:"height"`
+	} `json:"viewport"`
 }
 
 func loadConfig() Config {
@@ -235,17 +237,17 @@ func runPageWithPlugins(script string, hooks []string) error {
 	cfg := loadConfig()
 	pluginPaths, _ := LoadPlugins(cfg)
 	
-	context := map[string]interface{}{
-    "engine":   cfg.Engine,
-    "headless": cfg.Headless,
-    "viewport": cfg.Viewport,
-    "timeout":  cfg.Timeout,
-    "plugins":  cfg.Plugins,
-}
+	context := PluginContext{
+		Engine:   cfg.Engine,
+		Headless: cfg.Headless,
+		Plugins:  cfg.Plugins,
+		Timeout:  cfg.Timeout,
+		Viewport: cfg.Viewport,
+	}
 
-for _, hook := range hooks {
-    ExecutePluginHooksWithContext(hook, pluginPaths, context)
-}
+	for _, hook := range hooks {
+		ExecutePluginHooksWithContext(hook, pluginPaths, context)
+	}
 
 	err := runNodeScript(script)
 	ExecutePluginHooks("onExit", pluginPaths)
