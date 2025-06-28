@@ -7,22 +7,35 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Config struct {
+	Engine   string   `json:"engine"`
 	Headless bool     `json:"headless"`
 	Plugins  []string `json:"plugins"`
+	Timeout  int      `json:"timeout"`
 	Viewport struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
 	} `json:"viewport"`
+	Engines map[string]interface{} `json:"engines"`
+}
+
+type EngineStatus struct {
+	Name      string
+	Available bool
+	Path      string
+	Error     string
 }
 
 func loadConfig() Config {
 	data, err := os.ReadFile("phantomvite.config.json")
 	if err != nil {
 		return Config{
+			Engine:   "puppeteer",
 			Headless: true,
+			Timeout:  30000,
 			Viewport: struct {
 				Width  int `json:"width"`
 				Height int `json:"height"`
@@ -35,19 +48,85 @@ func loadConfig() Config {
 	var cfg Config
 	json.Unmarshal(data, &cfg)
 	
-	// Set default viewport if not specified
+	// Set defaults
+	if cfg.Engine == "" {
+		cfg.Engine = "puppeteer"
+	}
 	if cfg.Viewport.Width == 0 {
 		cfg.Viewport.Width = 1920
 	}
 	if cfg.Viewport.Height == 0 {
 		cfg.Viewport.Height = 1080
 	}
+	if cfg.Timeout == 0 {
+		cfg.Timeout = 30000
+	}
 	
 	return cfg
 }
 
+func checkEngineStatus() []EngineStatus {
+	engines := []EngineStatus{
+		{Name: "puppeteer", Available: false},
+		{Name: "playwright", Available: false},
+		{Name: "selenium", Available: false},
+		{Name: "gemini", Available: false},
+	}
+	
+	// Check puppeteer
+	if puppeteerInstalled() {
+		engines[0].Available = true
+		engines[0].Path = "runtime/node_modules/puppeteer"
+	} else {
+		engines[0].Error = "Not installed. Run: cd runtime && npm install puppeteer"
+	}
+	
+	// Check playwright
+	if playwrightInstalled() {
+		engines[1].Available = true
+		engines[1].Path = "runtime/node_modules/playwright"
+	} else {
+		engines[1].Error = "Not installed. Run: cd runtime && npm install playwright"
+	}
+	
+	// Check selenium
+	if seleniumInstalled() {
+		engines[2].Available = true
+		engines[2].Path = "runtime-python"
+	} else {
+		engines[2].Error = "Not installed. Run: cd runtime-python && pip install selenium"
+	}
+	
+	// Check gemini CLI
+	if _, err := exec.LookPath("gemini"); err == nil {
+		engines[3].Available = true
+		engines[3].Path = "system"
+	} else {
+		engines[3].Error = "Not installed. Run: npm install -g @google/gemini-cli"
+	}
+	
+	return engines
+}
+
+func validateEngine(engine string) error {
+	status := checkEngineStatus()
+	for _, s := range status {
+		if s.Name == engine {
+			if !s.Available {
+				return fmt.Errorf("❌ Engine '%s' is not available: %s", engine, s.Error)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("❌ Unknown engine: %s", engine)
+}
+
 func writeTempScript(url string, engine string) (string, error) {
-	code := fmt.Sprintf(`import puppeteer from 'puppeteer';
+	var code string
+	
+	switch engine {
+	case "puppeteer":
+		code = fmt.Sprintf(`import puppeteer from 'puppeteer';
 (async () => {
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
@@ -57,35 +136,57 @@ func writeTempScript(url string, engine string) (string, error) {
   await page.screenshot({ path: 'screenshot.png' });
   await browser.close();
 })();`, url)
+	case "playwright":
+		code = fmt.Sprintf(`import { chromium } from 'playwright';
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto('%s');
+  const title = await page.title();
+  console.log("[Playwright] Page title:", title);
+  await page.screenshot({ path: 'screenshot.png' });
+  await browser.close();
+})();`, url)
+	default:
+		return "", fmt.Errorf("unsupported engine for script generation: %s", engine)
+	}
 
-	tmpFile := "phantom-open.js"
+	tmpFile := fmt.Sprintf("phantom-open-%s.js", engine)
 	err := os.WriteFile(tmpFile, []byte(code), 0644)
 	return tmpFile, err
 }
 
-func runEngineScript(path, engine string) {
+func runEngineScript(path, engine string) error {
 	if engine == "selenium" {
 		cmd := exec.Command(resolveCommand("python3"), path)
 		cmd.Dir = "runtime-python"
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		cmd.Run()
-		return
+		return cmd.Run()
 	}
 
 	cmd := exec.Command("node", path)
 	cmd.Dir = "runtime"
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+	return cmd.Run()
 }
 
-// Updated runNodeScript to handle both regular scripts and bundled scripts
 func runNodeScript(script string) error {
 	cmd := exec.Command("node", script)
 	
-	// Only change to runtime directory for scripts that aren't bundled
-	if !strings.HasPrefix(script, "dist/") && !strings.HasPrefix(script, "../dist/") {
+	// Handle different script locations
+	if strings.HasPrefix(script, "dist/") {
+		// Bundled script, run from project root
+		cmd.Dir = ""
+	} else if strings.HasPrefix(script, "/") || strings.Contains(script, ":") {
+		// Absolute path, run from script directory
+		dir := filepath.Dir(script)
+		cmd.Dir = dir
+		script = filepath.Base(script)
+		cmd.Args = []string{"node", script}
+	} else {
+		// Relative path, run from runtime directory
 		cmd.Dir = "runtime"
 	}
 	
@@ -95,25 +196,8 @@ func runNodeScript(script string) error {
 	return cmd.Run()
 }
 
-func runGeminiPrompt(prompt string) error {
-	cmd := exec.Command("gemini", prompt)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
-	return cmd.Run()
-}
-
-func runPythonScript(script string) error {
-	cmd := exec.Command("python3", script)
-	cmd.Dir = "runtime-python"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
-	return cmd.Run()
-}
-
 func runViteBuild() error {
-	fmt.Println("[Phantom Vite] Running Vite build...")
+	fmt.Println("🔧 [Phantom Vite] Running Vite build...")
 	cmd := exec.Command("npx", "vite", "build")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -121,8 +205,41 @@ func runViteBuild() error {
 }
 
 func runViteBundle(entry string) error {
-	fmt.Println("[Phantom Vite] Bundling:", entry)
-	cmd := exec.Command("npx", "vite", "build")
+	fmt.Printf("📦 [Phantom Vite] Bundling: %s\n", entry)
+	
+	// Create a temporary Vite config for this specific entry
+	tempConfig := fmt.Sprintf(`
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  build: {
+    lib: {
+      entry: '%s',
+      name: 'PhantomViteScript',
+      fileName: (format) => '%s.js'
+    },
+    rollupOptions: {
+      external: ['puppeteer', 'playwright', 'selenium-webdriver'],
+      output: {
+        globals: {
+          'puppeteer': 'puppeteer',
+          'playwright': 'playwright',
+          'selenium-webdriver': 'selenium'
+        }
+      }
+    }
+  }
+});
+`, entry, strings.TrimSuffix(filepath.Base(entry), filepath.Ext(entry)))
+	
+	configFile := "vite.config.temp.js"
+	err := os.WriteFile(configFile, []byte(tempConfig), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create temp config: %w", err)
+	}
+	defer os.Remove(configFile)
+	
+	cmd := exec.Command("npx", "vite", "build", "--config", configFile)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -130,10 +247,17 @@ func runViteBundle(entry string) error {
 
 func puppeteerInstalled() bool {
 	info, err := os.Stat("runtime/node_modules/puppeteer")
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
+	return err == nil && info.IsDir()
+}
+
+func playwrightInstalled() bool {
+	info, err := os.Stat("runtime/node_modules/playwright")
+	return err == nil && info.IsDir()
+}
+
+func seleniumInstalled() bool {
+	info, err := os.Stat("runtime-python")
+	return err == nil && info.IsDir()
 }
 
 func resolveCommand(name string) string {
@@ -145,99 +269,213 @@ func resolveCommand(name string) string {
 	return name
 }
 
-func bundleIfTs(file string) error {
-	ext := filepath.Ext(file)
-	if ext == ".ts" {
-		fmt.Println("[Phantom Vite] Detected TypeScript, bundling...")
-		return runViteBundle(file)
-	}
-	return nil
-}
-
-// Helper function to check if a file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
+func printUsage() {
+	fmt.Println("🕴️  Phantom Vite - Headless Browser CLI")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  phantom-vite open <url> [--engine <engine>]")
+	fmt.Println("  phantom-vite build")
+	fmt.Println("  phantom-vite bundle <file>")
+	fmt.Println("  phantom-vite serve <file>")
+	fmt.Println("  phantom-vite doctor")
+	fmt.Println("  phantom-vite engines")
+	fmt.Println("  phantom-vite agent <prompt>")
+	fmt.Println("  phantom-vite gemini <prompt>")
+	fmt.Println("  phantom-vite plugins")
+	fmt.Println("  phantom-vite <script.js>")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  phantom-vite open https://example.com")
+	fmt.Println("  phantom-vite open https://example.com --engine playwright")
+	fmt.Println("  phantom-vite build")
+	fmt.Println("  phantom-vite script.ts")
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage:")
-		fmt.Println("  phantom-vite open <url>")
-		fmt.Println("  phantom-vite build")
-		fmt.Println("  phantom-vite <script.js>")
+		printUsage()
 		os.Exit(1)
 	}
 
-	supportedEngines := map[string]bool{
-		"puppeteer":  true,
-		"playwright": true,
-		"selenium":   true,
-		"gemini":     true,
-	}
-
-	engine := "puppeteer"
-	for i := 3; i < len(os.Args); i++ {
+	cfg := loadConfig()
+	
+	// Parse engine flag
+	engine := cfg.Engine
+	for i := 2; i < len(os.Args); i++ {
 		if os.Args[i] == "--engine" && i+1 < len(os.Args) {
 			engine = os.Args[i+1]
+			break
 		}
 	}
-
-	if !supportedEngines[engine] {
-		fmt.Println("❌ Unsupported engine:", engine)
-		fmt.Println("✅ Supported engines: puppeteer, playwright, selenium, gemini")
-		return
-	}
-
-	args := os.Args[2:]
 
 	switch os.Args[1] {
+	case "doctor":
+		fmt.Println("🏥 [Phantom Vite] Health Check")
+		fmt.Println()
+		
+		// Check Go version
+		if cmd := exec.Command("go", "version"); cmd.Run() == nil {
+			fmt.Println("✅ Go runtime available")
+		} else {
+			fmt.Println("❌ Go runtime not found")
+		}
+		
+		// Check Node.js version
+		if cmd := exec.Command("node", "--version"); cmd.Run() == nil {
+			fmt.Println("✅ Node.js runtime available")
+		} else {
+			fmt.Println("❌ Node.js runtime not found")
+		}
+		
+		// Check Python version
+		if cmd := exec.Command(resolveCommand("python3"), "--version"); cmd.Run() == nil {
+			fmt.Println("✅ Python runtime available")
+		} else {
+			fmt.Println("❌ Python runtime not found")
+		}
+		
+		// Check engines
+		fmt.Println()
+		fmt.Println("🔧 Engine Status:")
+		statuses := checkEngineStatus()
+		for _, status := range statuses {
+			if status.Available {
+				fmt.Printf("  ✅ %s (%s)\n", status.Name, status.Path)
+			} else {
+				fmt.Printf("  ❌ %s - %s\n", status.Name, status.Error)
+			}
+		}
+		
+		// Check configuration
+		fmt.Println()
+		fmt.Println("⚙️  Configuration:")
+		fmt.Printf("  Default engine: %s\n", cfg.Engine)
+		fmt.Printf("  Headless mode: %t\n", cfg.Headless)
+		fmt.Printf("  Viewport: %dx%d\n", cfg.Viewport.Width, cfg.Viewport.Height)
+		fmt.Printf("  Timeout: %dms\n", cfg.Timeout)
+		
+		return
+
 	case "open":
+		args := os.Args[2:]
 		if len(args) < 1 {
-			fmt.Println("Usage: phantom-vite open <url> [--engine engineName]")
+			fmt.Println("Usage: phantom-vite open <url> [--engine <engine>]")
 			return
 		}
+		
 		url := args[0]
-		if len(args) > 2 && args[1] == "--engine" {
-			engine = args[2]
+		
+		// Validate engine
+		if err := validateEngine(engine); err != nil {
+			fmt.Println(err)
+			fmt.Println("💡 Run 'phantom-vite doctor' to check your setup")
+			return
 		}
+		
 		scriptPath, err := writeTempScript(url, engine)
 		if err != nil {
-			fmt.Println("❌ Failed to generate script:", err)
+			fmt.Printf("❌ Failed to generate script: %v\n", err)
 			return
 		}
-		fmt.Println("🚀 Running script:", scriptPath)
-		runEngineScript(scriptPath, engine)
+		defer os.Remove(scriptPath) // Clean up temp file
+		
+		fmt.Printf("🚀 Opening %s with %s engine...\n", url, engine)
+		
+		start := time.Now()
+		if err := runEngineScript(scriptPath, engine); err != nil {
+			fmt.Printf("❌ Script execution failed: %v\n", err)
+			return
+		}
+		
+		fmt.Printf("✅ Completed in %v\n", time.Since(start))
 
 	case "engines":
-		fmt.Println("🔧 Supported engines:")
-		fmt.Println(" - puppeteer  (Node.js, full Chrome control via DevTools protocol)")
-		fmt.Println(" - playwright (Node.js, cross-browser automation)")
-		fmt.Println(" - selenium   (Python, WebDriver-based, cross-language)")
-		fmt.Println(" - gemini     (CLI, Gemini tool integration for testing)")
+		fmt.Println("🔧 Supported Engines:")
+		statuses := checkEngineStatus()
+		for _, status := range statuses {
+			availability := "❌"
+			if status.Available {
+				availability = "✅"
+			}
+			fmt.Printf("  %s %s", availability, status.Name)
+			
+			switch status.Name {
+			case "puppeteer":
+				fmt.Print(" - Node.js, full Chrome control via DevTools protocol")
+			case "playwright":
+				fmt.Print(" - Node.js, cross-browser automation (Chrome, Firefox, Safari)")
+			case "selenium":
+				fmt.Print(" - Python, WebDriver-based, cross-language support")
+			case "gemini":
+				fmt.Print(" - CLI, Google AI integration for intelligent automation")
+			}
+			
+			if !status.Available {
+				fmt.Printf("\n    💡 %s", status.Error)
+			}
+			fmt.Println()
+		}
 		return
 
 	case "build":
+		fmt.Println("🔧 [Phantom Vite] Building project...")
+		start := time.Now()
 		if err := runViteBuild(); err != nil {
-			fmt.Println("Vite build failed:", err)
+			fmt.Printf("❌ Build failed: %v\n", err)
 			os.Exit(1)
 		}
+		fmt.Printf("✅ Build completed in %v\n", time.Since(start))
 
 	case "bundle":
+		args := os.Args[2:]
 		if len(args) < 1 {
-			fmt.Println("Usage: phantom-vite bundle <file> [--engine engineName]")
+			fmt.Println("Usage: phantom-vite bundle <file> [--engine <engine>]")
 			return
 		}
+		
 		inputFile := args[0]
-		if len(args) > 2 && args[1] == "--engine" {
-			engine = args[2]
-		}
-		err := runViteBundle(inputFile)
-		if err != nil {
-			fmt.Println("❌ Bundling failed:", err)
+		if !fileExists(inputFile) {
+			fmt.Printf("❌ File not found: %s\n", inputFile)
 			return
 		}
-		fmt.Println("📦 Bundled", inputFile, "for engine:", engine)
+		
+		fmt.Printf("📦 Bundling %s for %s engine...\n", inputFile, engine)
+		
+		start := time.Now()
+		if err := runViteBundle(inputFile); err != nil {
+			fmt.Printf("❌ Bundling failed: %v\n", err)
+			return
+		}
+		
+		fmt.Printf("✅ Bundling completed in %v\n", time.Since(start))
+
+	case "serve":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: phantom-vite serve <file>")
+			os.Exit(1)
+		}
+		file := os.Args[2]
+		
+		if !fileExists(file) {
+			fmt.Printf("❌ File not found: %s\n", file)
+			return
+		}
+		
+		fmt.Printf("🌐 Serving %s...\n", file)
+		cmd := exec.Command("npx", "vite", "preview", "--config", file)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("❌ Serve error: %v\n", err)
+			os.Exit(1)
+		}
 
 	case "agent":
 		if len(os.Args) < 3 {
@@ -245,13 +483,15 @@ func main() {
 			os.Exit(1)
 		}
 		prompt := strings.Join(os.Args[2:], " ")
+		
+		fmt.Printf("🤖 Launching AI agent with prompt: %s\n", prompt)
 		cmd := exec.Command(resolveCommand("python3"), "python/agent.py", prompt)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
-		fmt.Println("[Phantom Vite] Launching AI agent...")
+		
 		if err := cmd.Run(); err != nil {
-			fmt.Println("Agent error:", err)
+			fmt.Printf("❌ Agent error: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -261,67 +501,67 @@ func main() {
 			os.Exit(1)
 		}
 		prompt := strings.Join(os.Args[2:], " ")
-		cmd := exec.Command(resolveCommand("gemini"), prompt)
+		
+		fmt.Printf("✨ Passing to Gemini CLI: %s\n", prompt)
+		cmd := exec.Command("gemini", prompt)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
-		fmt.Println("[Phantom Vite] Passing to Gemini CLI...")
+		
 		if err := cmd.Run(); err != nil {
-			fmt.Println("Gemini CLI error:", err)
-		}
-
-	case "serve":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: phantom-vite serve <file>")
-			os.Exit(1)
-		}
-		file := os.Args[2]
-		cmd := exec.Command("npx", "vite", "preview", "--config", file)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		fmt.Println("[Phantom Vite] Serving file:", file)
-		if err := cmd.Run(); err != nil {
-			fmt.Println("Serve error:", err)
-			os.Exit(1)
+			fmt.Printf("❌ Gemini CLI error: %v\n", err)
 		}
 
 	case "plugins":
 		cfg := loadConfig()
 		if len(cfg.Plugins) == 0 {
-			fmt.Println("[Phantom Vite] No plugins defined in phantomvite.config.json")
+			fmt.Println("📦 No plugins defined in phantomvite.config.json")
+			fmt.Println("💡 Add plugins to your config file:")
+			fmt.Println(`{
+  "plugins": [
+    "./plugins/seo.js",
+    "./plugins/performance.js"
+  ]
+}`)
 			return
 		}
-		fmt.Println("[Phantom Vite] Plugin Check:")
+		
+		fmt.Println("📦 Plugin Status:")
 		for _, path := range cfg.Plugins {
-			if _, err := os.Stat(path); err != nil {
-				fmt.Printf("  ❌ %s (not found)\n", path)
-			} else {
+			if fileExists(path) {
 				fmt.Printf("  ✅ %s\n", path)
+			} else {
+				fmt.Printf("  ❌ %s (not found)\n", path)
 			}
 		}
 
 	default:
 		script := os.Args[1]
+		
+		if !fileExists(script) {
+			fmt.Printf("❌ Script not found: %s\n", script)
+			fmt.Println("💡 Make sure the file path is correct")
+			return
+		}
+		
 		ext := filepath.Ext(script)
 		
 		if ext == ".ts" {
-			fmt.Println("[Phantom Vite] Detected TypeScript file, bundling...")
-			if err := bundleIfTs(script); err != nil {
-				fmt.Println("❌ Failed to bundle:", err)
+			fmt.Printf("🔧 TypeScript detected, bundling %s...\n", script)
+			
+			if err := runViteBundle(script); err != nil {
+				fmt.Printf("❌ Failed to bundle: %v\n", err)
 				return
 			}
 			
-			// Determine the expected output file name
+			// Determine bundled file location
 			baseName := strings.TrimSuffix(filepath.Base(script), ".ts")
-			bundledScript := "dist/" + baseName + ".js"
+			bundledScript := filepath.Join("dist", baseName+".js")
 			
-			// Check if the bundled file exists
 			if !fileExists(bundledScript) {
 				fmt.Printf("❌ Bundled file not found: %s\n", bundledScript)
-				fmt.Println("💡 Make sure Vite build completed successfully")
 				
-				// Try to list what's actually in the dist directory
+				// List dist directory contents for debugging
 				if files, err := os.ReadDir("dist"); err == nil {
 					fmt.Println("📁 Files in dist directory:")
 					for _, file := range files {
@@ -335,10 +575,14 @@ func main() {
 			fmt.Printf("✅ Using bundled script: %s\n", script)
 		}
 		
-		fmt.Println("[Phantom Vite] Running script:", script)
+		fmt.Printf("🚀 Running script: %s\n", script)
+		start := time.Now()
+		
 		if err := runNodeScript(script); err != nil {
-			fmt.Println("Script error:", err)
+			fmt.Printf("❌ Script execution failed: %v\n", err)
 			os.Exit(1)
 		}
+		
+		fmt.Printf("✅ Script completed in %v\n", time.Since(start))
 	}
 }
