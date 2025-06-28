@@ -301,7 +301,7 @@ func main() {
             return
         }
         baseName := strings.TrimSuffix(filepath.Base(script), ".ts")
-        bundledScript := "dist/" + baseName + ".js"
+        bundledScript := "script/" + baseName + ".js"
         
         // Check if the bundled file exists
         if _, err := os.Stat(bundledScript); err != nil {
