@@ -171,32 +171,24 @@ func init() {
 	injectPluginContext()
 }
 
-func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, ctx PluginContext) {
-	payload, _ := json.Marshal(ctx)
-
+func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, context PluginContext) {
 	for _, plugin := range pluginPaths {
-		importPath := plugin
-		if os.PathSeparator == '\\' && strings.HasPrefix(plugin, "D:") {
-			importPath = "file:///" + strings.ReplaceAll(plugin, "\\", "/")
-		}
-
-		cmd := exec.Command("node", "-e", fmt.Sprintf(`
-			(async () => {
-				try {
-					const plugin = await import("%s");
-					if (plugin.%s) await plugin.%s(%s);
-				} catch (e) {
-					console.error("[Plugin Error]", e);
-				}
-			})()
-		`, importPath, hookName, hookName, string(payload)))
-
+		serialized, _ := json.Marshal(context)
+		cmd := exec.Command("node", "-e", fmt.Sprintf(`(async () => {
+  try {
+    const plugin = await import("%s");
+    if (plugin.%s) await plugin.%s(%s);
+  } catch (e) {
+    console.error("[Plugin Error]", e);
+  }
+})()`, plugin, hookName, hookName, string(serialized)))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Dir = "runtime"
 		_ = cmd.Run()
 	}
 }
+
 
 func writeTempScript(url string, engine string) (string, error) {
 	var code string
@@ -236,8 +228,8 @@ func writeTempScript(url string, engine string) (string, error) {
 func runPageWithPlugins(script string, hooks []string) error {
 	cfg := loadConfig()
 	pluginPaths, _ := LoadPlugins(cfg)
-	
-	context := PluginContext{
+
+	ctx := PluginContext{
 		Engine:   cfg.Engine,
 		Headless: cfg.Headless,
 		Plugins:  cfg.Plugins,
@@ -246,7 +238,7 @@ func runPageWithPlugins(script string, hooks []string) error {
 	}
 
 	for _, hook := range hooks {
-		ExecutePluginHooksWithContext(hook, pluginPaths, context)
+		ExecutePluginHooksWithContext(hook, pluginPaths, ctx)
 	}
 
 	err := runNodeScript(script)
