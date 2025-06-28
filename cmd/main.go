@@ -173,6 +173,26 @@ func init() {
 	injectPluginContext()
 }
 
+func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, context map[string]interface{}) {
+	for _, plugin := range pluginPaths {
+		serialized, _ := json.Marshal(context)
+		cmd := exec.Command("node", "-e", fmt.Sprintf(`
+			(async () => {
+			  try {
+				const plugin = await import("%s");
+				if (plugin.%s) await plugin.%s(%s);
+			  } catch (e) {
+				console.error("[Plugin Error]", e);
+			  }
+			})()
+		`, plugin, hookName, hookName, string(serialized)))
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Dir = "runtime"
+		_ = cmd.Run()
+	}
+}
+
 func writeTempScript(url string, engine string) (string, error) {
 	var code string
 	
@@ -206,6 +226,28 @@ func writeTempScript(url string, engine string) (string, error) {
 	tmpFile := fmt.Sprintf("phantom-open-%s.js", engine)
 	err := os.WriteFile(tmpFile, []byte(code), 0644)
 	return tmpFile, err
+}
+
+func runPageWithPlugins(script string, hooks []string) error {
+	cfg := loadConfig()
+	pluginPaths, _ := LoadPlugins(cfg)
+
+	context := map[string]interface{}{
+		"engine":   cfg.Engine,
+		"headless": cfg.Headless,
+		"viewport": cfg.Viewport,
+		"timeout":  cfg.Timeout,
+		"script":   script,
+	}
+
+	for _, hook := range hooks {
+		ExecutePluginHooksWithContext(hook, pluginPaths, context)
+	}
+
+	err := runNodeScript(script)
+
+	ExecutePluginHooksWithContext("onExit", pluginPaths, context)
+	return err
 }
 
 func validateEngine(engine string) error {
