@@ -1,22 +1,15 @@
-export const onStart = (ctx) => {
-  console.log("[SEO Plugin] onStart with context:", ctx);
-  if (ctx.engine === 'puppeteer') {
-    console.log("Launching Puppeteer!");
+// Avoid exporting both in production
+// Only keep one active export
+export function onStart(context) {
+  if (!context) {
+    console.warn('[SEO Plugin] No context provided to onStart');
+    return;
   }
-};
 
-export async function onPageLoad(page) {
-  console.log("[SEO Plugin] onPageLoad: Checking SEO elements...");
+  if (!context.engine) {
+    console.warn('[SEO Plugin] No engine found in context');
+    return;
+  }
 
-  const title = await page.title();
-  const description = await page.$eval('meta[name="description"]', el => el.content).catch(() => null);
-  const h1 = await page.$eval('h1', el => el.innerText).catch(() => null);
-
-  console.log(`[SEO Plugin] Title: ${title}`);
-  console.log(`[SEO Plugin] Meta description: ${description || "Not found"}`);
-  console.log(`[SEO Plugin] First <h1>: ${h1 || "Not found"}`);
-}
-
-export async function onExit() {
-  console.log("[SEO Plugin] onExit: Analysis complete.");
+  console.log('[SEO Plugin] Initialized with engine:', context.engine);
 }
