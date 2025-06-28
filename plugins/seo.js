@@ -3,7 +3,11 @@
 export async function onStart() {
   console.log("[SEO Plugin] onStart: Preparing for analysis...");
 }
-
+export const onStart = (ctx) => {
+  console.log("[Plugin] onStart with context:", ctx);
+  if (ctx.engine === 'puppeteer') {
+    console.log("Launching Puppeteer!");
+  }
 export async function onPageLoad(page) {
   console.log("[SEO Plugin] onPageLoad: Checking SEO elements...");
 
