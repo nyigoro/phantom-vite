@@ -315,4 +315,6 @@ func main() {
     if err := runNodeScript(script); err != nil {
         fmt.Println("Script error:", err)
         os.Exit(1)
-    }
+    		}
+	}
+} 
