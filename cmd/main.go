@@ -9,21 +9,46 @@ import (
 	"strings"
 )
 
+// Updated Config struct with Viewport field
 type Config struct {
 	Headless bool     `json:"headless"`
 	Plugins  []string `json:"plugins"`
+	Viewport struct {
+		Width  int `json:"width"`
+		Height int `json:"height"`
+	} `json:"viewport"`
 }
 
 func loadConfig() Config {
 	data, err := os.ReadFile("phantomvite.config.json")
 	if err != nil {
-		return Config{Headless: true}
+		// Return default config with default viewport
+		return Config{
+			Headless: true,
+			Viewport: struct {
+				Width  int `json:"width"`
+				Height int `json:"height"`
+			}{
+				Width:  1920,
+				Height: 1080,
+			},
+		}
 	}
 	var cfg Config
 	json.Unmarshal(data, &cfg)
+	
+	// Set default viewport if not specified
+	if cfg.Viewport.Width == 0 {
+		cfg.Viewport.Width = 1920
+	}
+	if cfg.Viewport.Height == 0 {
+		cfg.Viewport.Height = 1080
+	}
+	
 	return cfg
 }
 
+// Rest of your code remains the same...
 func writeTempScript(url string, engine string) (string, error) {
 	code := fmt.Sprintf(`import puppeteer from 'puppeteer';
 (async () => {
