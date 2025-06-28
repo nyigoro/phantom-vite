@@ -105,17 +105,67 @@ func checkEngineStatus() []EngineStatus {
 	return engines
 }
 
-func validateEngine(engine string) error {
-	status := checkEngineStatus()
-	for _, s := range status {
-		if s.Name == engine {
-			if !s.Available {
-				return fmt.Errorf("❌ Engine '%s' is not available: %s", engine, s.Error)
-			}
-			return nil
+func LoadPlugins(cfg Config) ([]string, error) {
+	var loaded []string
+	for _, path := range cfg.Plugins {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve plugin path %s: %v", path, err)
 		}
+		if _, err := os.Stat(abs); os.IsNotExist(err) {
+			return nil, fmt.Errorf("plugin not found: %s", abs)
+		}
+		loaded = append(loaded, abs)
 	}
-	return fmt.Errorf("❌ Unknown engine: %s", engine)
+	return loaded, nil
+}
+
+func ExecutePluginHooks(hookName string, pluginPaths []string) {
+	for _, plugin := range pluginPaths {
+		cmd := exec.Command("node", "-e", fmt.Sprintf(`
+			(async () => {
+			  try {
+				const plugin = await import("%s");
+				if (plugin.%s) await plugin.%s();
+			  } catch (e) {
+				console.error("[Plugin Error]", e);
+			  }
+			})()
+		`, plugin, hookName, hookName))
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Dir = "runtime"
+		_ = cmd.Run()
+	}
+}
+
+func runPageWithPlugins(script string, hooks []string) error {
+	cfg := loadConfig()
+	pluginPaths, _ := LoadPlugins(cfg)
+
+	for _, hook := range hooks {
+		ExecutePluginHooks(hook, pluginPaths)
+	}
+
+	err := runNodeScript(script)
+	ExecutePluginHooks("onExit", pluginPaths)
+	return err
+}
+
+func injectPluginContext() {
+	cfg := loadConfig()
+	if len(cfg.Plugins) > 0 {
+		pluginEnv := strings.Join(cfg.Plugins, string(os.PathListSeparator))
+		os.Setenv("PHANTOM_PLUGINS", pluginEnv)
+	}
+}
+
+func init() {
+	cfg := loadConfig()
+	if plugins, err := LoadPlugins(cfg); err == nil {
+		ExecutePluginHooks("onStart", plugins)
+	}
+	injectPluginContext()
 }
 
 func writeTempScript(url string, engine string) (string, error) {
@@ -191,6 +241,26 @@ func runNodeScript(script string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
 	return cmd.Run()
+}
+
+func writeContextFile(cfg Config, url string) (string, error) {
+	context := map[string]interface{}{
+		"engine":   cfg.Engine,
+		"headless": cfg.Headless,
+		"viewport": cfg.Viewport,
+		"timeout":  cfg.Timeout,
+		"plugins":  cfg.Plugins,
+		"url":      url,
+	}
+
+	data, err := json.MarshalIndent(context, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	path := "phantom.context.json"
+	err = os.WriteFile(path, data, 0644)
+	return path, err
 }
 
 func runViteBuild() error {
@@ -384,11 +454,17 @@ func main() {
 		fmt.Printf("🚀 Opening %s with %s engine...\n", url, engine)
 		
 		start := time.Now()
+		contextPath, err := writeContextFile(cfg, url)
+                if err == nil {
+	                os.Setenv("PHANTOM_CONTEXT_PATH", contextPath)
+               }
+
 		if err := runEngineScript(scriptPath, engine); err != nil {
 			fmt.Printf("❌ Script execution failed: %v\n", err)
 			return
 		}
-		
+
+		defer os.Remove("phantom.context.json")
 		fmt.Printf("✅ Completed in %v\n", time.Since(start))
 
 	case "engines":
