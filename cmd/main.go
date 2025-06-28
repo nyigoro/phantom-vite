@@ -144,19 +144,6 @@ cmd := exec.Command("node", "-e", fmt.Sprintf(`
 	}
 }
 
-func runPageWithPlugins(script string, hooks []string) error {
-	cfg := loadConfig()
-	pluginPaths, _ := LoadPlugins(cfg)
-
-	for _, hook := range hooks {
-		ExecutePluginHooks(hook, pluginPaths)
-	}
-
-	err := runNodeScript(script)
-	ExecutePluginHooks("onExit", pluginPaths)
-	return err
-}
-
 func injectPluginContext() {
 	cfg := loadConfig()
 	if len(cfg.Plugins) > 0 {
@@ -232,21 +219,12 @@ func runPageWithPlugins(script string, hooks []string) error {
 	cfg := loadConfig()
 	pluginPaths, _ := LoadPlugins(cfg)
 
-	context := map[string]interface{}{
-		"engine":   cfg.Engine,
-		"headless": cfg.Headless,
-		"viewport": cfg.Viewport,
-		"timeout":  cfg.Timeout,
-		"script":   script,
-	}
-
 	for _, hook := range hooks {
-		ExecutePluginHooksWithContext(hook, pluginPaths, context)
+		ExecutePluginHooks(hook, pluginPaths)
 	}
 
 	err := runNodeScript(script)
-
-	ExecutePluginHooksWithContext("onExit", pluginPaths, context)
+	ExecutePluginHooks("onExit", pluginPaths)
 	return err
 }
 
