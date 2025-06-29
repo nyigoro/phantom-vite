@@ -40,6 +40,11 @@ type PluginContext struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
 	} `json:"viewport"`
+	Meta struct {
+		Command string `json:"command"`
+		Script  string `json:"script,omitempty"`
+		URL     string `json:"url,omitempty"`
+	} `json:"meta"`
 }
 
 func loadConfig() Config {
