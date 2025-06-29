@@ -180,20 +180,19 @@ func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, contex
 	for _, plugin := range pluginPaths {
 		serialized, _ := json.Marshal(context)
 		cmd := exec.Command("node", "-e", fmt.Sprintf(`(async () => {
-  try {
-    const plugin = await import("%s");
-    if (plugin.%s) await plugin.%s(%s);
-  } catch (e) {
-    console.error("[Plugin Error]", e);
-  }
-})()`, plugin, hookName, hookName, string(serialized)))
+			try {
+				const plugin = await import("%s");
+				if (plugin.%s) await plugin.%s(%s);
+			} catch (e) {
+				console.error("[Plugin Error]", e);
+			}
+		})()`, plugin, hookName, hookName, string(serialized)))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Dir = "runtime"
 		_ = cmd.Run()
 	}
 }
-
 
 func writeTempScript(url string, engine string) (string, error) {
 	var code string
@@ -241,6 +240,8 @@ func runPageWithPlugins(script string, hooks []string) error {
 		Timeout:  cfg.Timeout,
 		Viewport: cfg.Viewport,
 	}
+	ctx.Meta.Command = "script"
+	ctx.Meta.Script = script
 
 	for _, hook := range hooks {
 		ExecutePluginHooksWithContext(hook, pluginPaths, ctx)
