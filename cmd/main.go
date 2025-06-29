@@ -603,40 +603,60 @@ func main() {
 			os.Exit(1)
 		}
 
-	case "agent":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: phantom-vite agent <prompt>")
-			os.Exit(1)
-		}
-		prompt := strings.Join(os.Args[2:], " ")
-		
-		fmt.Printf("🤖 Launching AI agent with prompt: %s\n", prompt)
-		cmd := exec.Command(resolveCommand("python3"), "python/agent.py", prompt)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("❌ Agent error: %v\n", err)
-			os.Exit(1)
-		}
+case "agent":
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: phantom-vite agent <prompt>")
+		os.Exit(1)
+	}
+	prompt := strings.Join(os.Args[2:], " ")
+	fmt.Printf("🤖 Launching AI agent with prompt: %s\n", prompt)
 
-	case "gemini":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: phantom-vite gemini <prompt>")
-			os.Exit(1)
-		}
-		prompt := strings.Join(os.Args[2:], " ")
-		
-		fmt.Printf("✨ Passing to Gemini CLI: %s\n", prompt)
-		cmd := exec.Command("gemini", prompt)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("❌ Gemini CLI error: %v\n", err)
-		}
+	pluginPaths, _ := LoadPlugins(cfg)
+	context := PluginContext{
+		Engine:   cfg.Engine,
+		Headless: cfg.Headless,
+		Plugins:  cfg.Plugins,
+		Timeout:  cfg.Timeout,
+		Viewport: cfg.Viewport,
+	}
+	ExecutePluginHooksWithContext("onStart", pluginPaths, context)
+
+	cmd := exec.Command(resolveCommand("python3"), "python/agent.py", prompt)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("❌ Agent error: %v\n", err)
+		os.Exit(1)
+	}
+
+case "gemini":
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: phantom-vite gemini <prompt>")
+		os.Exit(1)
+	}
+	prompt := strings.Join(os.Args[2:], " ")
+	fmt.Printf("✨ Passing to Gemini CLI: %s\n", prompt)
+
+	pluginPaths, _ := LoadPlugins(cfg)
+	context := PluginContext{
+		Engine:   cfg.Engine,
+		Headless: cfg.Headless,
+		Plugins:  cfg.Plugins,
+		Timeout:  cfg.Timeout,
+		Viewport: cfg.Viewport,
+	}
+	ExecutePluginHooksWithContext("onStart", pluginPaths, context)
+
+	cmd := exec.Command("gemini", prompt)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("❌ Gemini CLI error: %v\n", err)
+	}
 
 	case "plugins":
 		cfg := loadConfig()
