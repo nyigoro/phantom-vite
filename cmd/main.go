@@ -513,10 +513,22 @@ func main() {
 		fmt.Printf("🚀 Opening %s with %s engine...\n", url, engine)
 		
 		start := time.Now()
-		contextPath, err := writeContextFile(cfg, url)
-                if err == nil {
-	                os.Setenv("PHANTOM_CONTEXT_PATH", contextPath)
-               }
+pluginPaths, _ := LoadPlugins(cfg)
+ctx := PluginContext{
+	Engine:   cfg.Engine,
+	Headless: cfg.Headless,
+	Plugins:  cfg.Plugins,
+	Timeout:  cfg.Timeout,
+	Viewport: cfg.Viewport,
+}
+ctx.Meta.Command = "open"
+ctx.Meta.URL = url
+ExecutePluginHooksWithContext("onStart", pluginPaths, ctx)
+
+contextPath, err := writeContextFile(cfg, url)
+if err == nil {
+	os.Setenv("PHANTOM_CONTEXT_PATH", contextPath)
+}
 
 		if err := runEngineScript(scriptPath, engine); err != nil {
 			fmt.Printf("❌ Script execution failed: %v\n", err)
@@ -625,7 +637,8 @@ case "agent":
 		Timeout:  cfg.Timeout,
 		Viewport: cfg.Viewport,
 	}
-	ExecutePluginHooksWithContext("onStart", pluginPaths, context)
+	context.Meta.Command = "agent"
+ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 
 	cmd := exec.Command(resolveCommand("python3"), "python/agent.py", prompt)
 	cmd.Stdout = os.Stdout
@@ -653,7 +666,8 @@ case "gemini":
 		Timeout:  cfg.Timeout,
 		Viewport: cfg.Viewport,
 	}
-	ExecutePluginHooksWithContext("onStart", pluginPaths, context)
+	context.Meta.Command = "gemini"
+ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 
 	cmd := exec.Command("gemini", prompt)
 	cmd.Stdout = os.Stdout
