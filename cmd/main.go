@@ -222,8 +222,7 @@ func runPageWithPlugins(script string, hooks []string, command string) error {
 		URL     string `json:"url,omitempty"`
 	}{
 		Command: "run",
-		Script:  scriptPath, // or "" if not applicable
-		URL:     url,        // or "" if not applicable
+		Script:  script,
 	},
 }
 
@@ -509,9 +508,9 @@ ctx := PluginContext{
 		Script  string `json:"script,omitempty"`
 		URL     string `json:"url,omitempty"`
 	}{
-		Command: "open",     // or "agent", "gemini", "run", etc.
-		URL:     url,        // if applicable
-		Script:  scriptPath, // if applicable
+		Command: "open",    
+		URL:     url,
+		Script:  scriptPath,
 	},
 }
 ExecutePluginHooksWithContext("onStart", pluginPaths, ctx)
@@ -635,9 +634,7 @@ case "agent":
 		Script  string `json:"script,omitempty"`
 		URL     string `json:"url,omitempty"`
 	}{
-		Command: "open",     // or "agent", "gemini", "run", etc.
-		URL:     url,        // if applicable
-		Script:  scriptPath, // if applicable
+		Command: "agent",
 	},
 }
 	context.Meta.Command = "agent"
@@ -673,9 +670,7 @@ case "gemini":
 		Script  string `json:"script,omitempty"`
 		URL     string `json:"url,omitempty"`
 	}{
-		Command: "open",     // or "agent", "gemini", "run", etc.
-		URL:     url,        // if applicable
-		Script:  scriptPath, // if applicable
+		Command: "gemini",
 	},
 }
 	context.Meta.Command = "gemini"
@@ -698,6 +693,7 @@ ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 			fmt.Println(`{
   "plugins": [
     "./plugins/seo.js",
+    "./plugins/logger.js",
     "./plugins/performance.js"
   ]
 }`)
@@ -765,9 +761,8 @@ default:
 		Script  string `json:"script,omitempty"`
 		URL     string `json:"url,omitempty"`
 	}{
-		Command: "open",     // or "agent", "gemini", "run", etc.
-		URL:     url,        // if applicable
-		Script:  scriptPath, // if applicable
+		Command: "run",
+		Script:  script,
 	},
 }
 	pluginPaths, _ := LoadPlugins(cfg)
