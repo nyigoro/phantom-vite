@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+type PluginConfig struct {
+	Path    string                 `json:"path"`
+	Options map[string]interface{} `json:"options,omitempty"`
+}
+
 type Config struct {
 	Engine   string   `json:"engine"`
 	Headless bool     `json:"headless"`
@@ -22,6 +27,8 @@ type Config struct {
 		Height int `json:"height"`
 	} `json:"viewport"`
 	Engines map[string]interface{} `json:"engines"`
+	Plugins []PluginConfig `json:"plugins"`
+	Entries []string        `json:"entries"`
 }
 
 type EngineStatus struct {
@@ -34,7 +41,7 @@ type EngineStatus struct {
 type PluginContext struct {
 	Engine   string   `json:"engine"`
 	Headless bool     `json:"headless"`
-	Plugins  []string `json:"plugins"`
+	Plugins  []PluginConfig `json:"plugins"`
 	Timeout  int      `json:"timeout"`
 	Viewport struct {
 		Width  int `json:"width"`
