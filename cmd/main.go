@@ -129,7 +129,7 @@ func checkEngineStatus() []EngineStatus {
 func LoadPlugins(cfg Config) ([]string, error) {
 	var loaded []string
 	for _, path := range cfg.Plugins {
-		abs, err := filepath.Abs(path)
+		abs, err := filepath.Abs(path.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve plugin path %s: %v", path, err)
 		}
@@ -144,7 +144,11 @@ func LoadPlugins(cfg Config) ([]string, error) {
 func injectPluginContext() {
 	cfg := loadConfig()
 	if len(cfg.Plugins) > 0 {
-		pluginEnv := strings.Join(cfg.Plugins, string(os.PathListSeparator))
+		var pluginPaths []string
+		for _, plugin := range cfg.Plugins {
+			pluginPaths = append(pluginPaths, plugin.Path)
+		}
+		pluginEnv := strings.Join(pluginPaths, string(os.PathListSeparator))
 		os.Setenv("PHANTOM_PLUGINS", pluginEnv)
 	}
 }
@@ -707,7 +711,7 @@ ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 		
 		fmt.Println("📦 Plugin Status:")
 		for _, path := range cfg.Plugins {
-			if fileExists(path) {
+			if fileExists(path.Path) {
 				fmt.Printf("  ✅ %s\n", path)
 			} else {
 				fmt.Printf("  ❌ %s (not found)\n", path)
