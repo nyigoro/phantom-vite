@@ -1,15 +1,23 @@
-// Avoid exporting both in production
-// Only keep one active export
 export function onStart(context) {
-  if (!context) {
-    console.warn('[SEO Plugin] No context provided to onStart');
-    return;
-  }
+  if (!context) return console.warn('[SEO Plugin] No context');
 
-  if (!context.engine) {
-    console.warn('[SEO Plugin] No engine found in context');
-    return;
-  }
+  const { engine, meta } = context;
+  const command = meta?.command || 'unknown';
+  const url = meta?.url || 'N/A';
 
-  console.log('[SEO Plugin] Initialized with engine:', context.engine);
+  console.log(`[SEO Plugin] onStart triggered by command: ${command}`);
+  console.log(`[SEO Plugin] Engine: ${engine}`);
+  console.log(`[SEO Plugin] Target URL: ${url}`);
 }
+export function onStart(context) {
+  if (!context) return console.warn('[SEO Plugin] No context');
+
+  const { engine, meta } = context;
+  const command = meta?.command || 'unknown';
+  const url = meta?.url || 'N/A';
+
+  console.log(`[SEO Plugin] onStart triggered by command: ${command}`);
+  console.log(`[SEO Plugin] Engine: ${engine}`);
+  console.log(`[SEO Plugin] Target URL: ${url}`);
+}
+
