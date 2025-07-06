@@ -764,7 +764,6 @@ default:
 		os.Exit(1)
 	}
 
-	ExecutePluginHooks("onExit", pluginPaths)
 	fmt.Printf("✅ Script completed in %v\n", time.Since(start))
 	}
 }
