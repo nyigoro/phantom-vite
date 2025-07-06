@@ -4,10 +4,21 @@
     "width": 1920,
     "height": 1080
   },
-  "plugins": [
-    "plugins/logger.js",
-    "plugins/seo.js"
-  ],
+ "plugins": [
+  {
+    "path": "plugins/logger.js",
+    "options": {
+      "level": "debug"
+    }
+  },
+  {
+    "path": "plugins/seo.js",
+    "options": {
+      "strict": true,
+      "checkH1": true
+    }
+  }
+],
   "entries": [
     "scripts/example.ts",
     "scripts/puppet-test.ts",
