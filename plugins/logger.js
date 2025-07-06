@@ -7,9 +7,9 @@ export function onStart(context) {
   const command = meta?.command || 'unknown';
   const url = meta?.url || 'N/A';
 
-  console.log(`[SEO Plugin] onStart triggered by command: ${command}`);
-  console.log(`[SEO Plugin] Engine: ${engine}`);
-  console.log(`[SEO Plugin] Target URL: ${url}`);
+  console.log(`[logger Plugin] onStart triggered by command: ${command}`);
+  console.log(`[logger Plugin] Engine: ${engine}`);
+  console.log(`[logger Plugin] Target URL: ${url}`);
 }
 
 
