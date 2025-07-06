@@ -256,7 +256,6 @@ func runPageWithPlugins(script string, hooks []string) error {
 	}
 
 	err := runNodeScript(script)
-	ExecutePluginHooks("onExit", pluginPaths)
 	return err
 }
 
