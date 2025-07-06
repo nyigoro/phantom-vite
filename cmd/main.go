@@ -178,15 +178,23 @@ func init() {
 
 func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, context PluginContext) {
 	for _, plugin := range pluginPaths {
+		// Normalize for Windows paths with drive letters (D:\ etc)
+		importPath := plugin
+		if os.PathSeparator == '\\' && strings.HasPrefix(plugin, "D:") {
+			importPath = "file:///" + strings.ReplaceAll(plugin, "\\", "/")
+		}
+
 		serialized, _ := json.Marshal(context)
+
 		cmd := exec.Command("node", "-e", fmt.Sprintf(`(async () => {
-			try {
-				const plugin = await import("%s");
-				if (plugin.%s) await plugin.%s(%s);
-			} catch (e) {
-				console.error("[Plugin Error]", e);
-			}
-		})()`, plugin, hookName, hookName, string(serialized)))
+		  try {
+			const plugin = await import("%s");
+			if (plugin.%s) await plugin.%s(%s);
+		  } catch (e) {
+			console.error("[Plugin Error]", e);
+		  }
+		})()`, importPath, hookName, hookName, string(serialized)))
+
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Dir = "runtime"
