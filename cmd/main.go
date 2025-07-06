@@ -136,30 +136,6 @@ func LoadPlugins(cfg Config) ([]string, error) {
 	return loaded, nil
 }
 
-func ExecutePluginHooks(hookName string, pluginPaths []string) {
-	for _, plugin := range pluginPaths {
-importPath := plugin
-if os.PathSeparator == '\\' && strings.HasPrefix(plugin, "D:") {
-	importPath = "file:///" + strings.ReplaceAll(plugin, "\\", "/")
-}
-
-cmd := exec.Command("node", "-e", fmt.Sprintf(`
-  (async () => {
-    try {
-      const plugin = await import("%s");
-      if (plugin.%s) await plugin.%s();
-    } catch (e) {
-      console.error("[Plugin Error]", e);
-    }
-  })()
-`, importPath, hookName, hookName))
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Dir = "runtime"
-		_ = cmd.Run()
-	}
-}
-
 func injectPluginContext() {
 	cfg := loadConfig()
 	if len(cfg.Plugins) > 0 {
