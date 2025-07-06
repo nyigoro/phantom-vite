@@ -205,17 +205,19 @@ func writeTempScript(url string, engine string) (string, error) {
 	return tmpFile, err
 }
 
-func runPageWithPlugins(script string, hooks []string) error {
+runPageWithPlugins(script, []string{"onStart"}, "run"){
 	cfg := loadConfig()
 	pluginPaths, _ := LoadPlugins(cfg)
 
 	ctx := PluginContext{
-		Engine:   cfg.Engine,
-		Headless: cfg.Headless,
-		Plugins:  cfg.Plugins,
-		Timeout:  cfg.Timeout,
-		Viewport: cfg.Viewport,
-	}
+  Engine: cfg.Engine,
+  Headless: cfg.Headless,
+  Plugins: cfg.Plugins,
+  Timeout: cfg.Timeout,
+  Viewport: cfg.Viewport,
+  Command: "run", // ← change this based on the actual command
+  URL: "",        // ← optional, e.g. from --url or context
+}
 	ctx.Meta.Command = "script"
 	ctx.Meta.Script = script
 
@@ -490,11 +492,13 @@ func main() {
 		start := time.Now()
 pluginPaths, _ := LoadPlugins(cfg)
 ctx := PluginContext{
-	Engine:   cfg.Engine,
-	Headless: cfg.Headless,
-	Plugins:  cfg.Plugins,
-	Timeout:  cfg.Timeout,
-	Viewport: cfg.Viewport,
+  Engine: cfg.Engine,
+  Headless: cfg.Headless,
+  Plugins: cfg.Plugins,
+  Timeout: cfg.Timeout,
+  Viewport: cfg.Viewport,
+  Command: "run", // ← change this based on the actual command
+  URL: "",        // ← optional, e.g. from --url or context
 }
 ctx.Meta.Command = "open"
 ctx.Meta.URL = url
@@ -606,12 +610,14 @@ case "agent":
 
 	pluginPaths, _ := LoadPlugins(cfg)
 	context := PluginContext{
-		Engine:   cfg.Engine,
-		Headless: cfg.Headless,
-		Plugins:  cfg.Plugins,
-		Timeout:  cfg.Timeout,
-		Viewport: cfg.Viewport,
-	}
+  Engine: cfg.Engine,
+  Headless: cfg.Headless,
+  Plugins: cfg.Plugins,
+  Timeout: cfg.Timeout,
+  Viewport: cfg.Viewport,
+  Command: "run", // ← change this based on the actual command
+  URL: "",        // ← optional, e.g. from --url or context
+}
 	context.Meta.Command = "agent"
 ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 
@@ -635,12 +641,14 @@ case "gemini":
 
 	pluginPaths, _ := LoadPlugins(cfg)
 	context := PluginContext{
-		Engine:   cfg.Engine,
-		Headless: cfg.Headless,
-		Plugins:  cfg.Plugins,
-		Timeout:  cfg.Timeout,
-		Viewport: cfg.Viewport,
-	}
+  Engine: cfg.Engine,
+  Headless: cfg.Headless,
+  Plugins: cfg.Plugins,
+  Timeout: cfg.Timeout,
+  Viewport: cfg.Viewport,
+  Command: "run", // ← change this based on the actual command
+  URL: "",        // ← optional, e.g. from --url or context
+}
 	context.Meta.Command = "gemini"
 ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 
@@ -718,12 +726,14 @@ default:
 
 	// ✅ Inject context before running the script
 	context := PluginContext{
-		Engine:   cfg.Engine,
-		Headless: cfg.Headless,
-		Plugins:  cfg.Plugins,
-		Timeout:  cfg.Timeout,
-		Viewport: cfg.Viewport,
-	}
+  Engine: cfg.Engine,
+  Headless: cfg.Headless,
+  Plugins: cfg.Plugins,
+  Timeout: cfg.Timeout,
+  Viewport: cfg.Viewport,
+  Command: "run", // ← change this based on the actual command
+  URL: "",        // ← optional, e.g. from --url or context
+}
 	pluginPaths, _ := LoadPlugins(cfg)
 	ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 
