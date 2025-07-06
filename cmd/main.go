@@ -144,14 +144,6 @@ func injectPluginContext() {
 	}
 }
 
-func init() {
-	cfg := loadConfig()
-	if plugins, err := LoadPlugins(cfg); err == nil {
-		ExecutePluginHooks("onStart", plugins)
-	}
-	injectPluginContext()
-}
-
 func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, context PluginContext) {
 	for _, plugin := range pluginPaths {
 		// Normalize for Windows paths with drive letters (D:\ etc)
