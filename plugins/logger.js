@@ -1,7 +1,7 @@
 const allowedCommands = ['open', 'agent'];
 
 export function onStart(context) {
-  if (!context) return console.warn('[SEO Plugin] No context');
+  if (!context) return console.warn('[logger Plugin] No context');
 
   const { engine, meta } = context;
   const command = meta?.command || 'unknown';
