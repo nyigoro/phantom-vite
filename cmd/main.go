@@ -18,13 +18,15 @@ type PluginConfig struct {
 }
 
 type Config struct {
-	Headless bool     `json:"headless"`
+	Engine   string         `json:"engine"`
+	Timeout  int            `json:"timeout"` 
+	Headless bool           `json:"headless"`
+	Plugins  []PluginConfig `json:"plugins"`
+	Entries  []string       `json:"entries"`
 	Viewport struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
 	} `json:"viewport"`
-	Plugins []PluginConfig `json:"plugins"`
-	Entries []string        `json:"entries"`
 }
 
 type EngineStatus struct {
