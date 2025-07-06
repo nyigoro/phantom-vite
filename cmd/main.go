@@ -205,27 +205,26 @@ func writeTempScript(url string, engine string) (string, error) {
 	return tmpFile, err
 }
 
-runPageWithPlugins(script, []string{"onStart"}, "run"){
+func runPageWithPlugins(script string, hooks []string, command string) error {
 	cfg := loadConfig()
 	pluginPaths, _ := LoadPlugins(cfg)
 
 	ctx := PluginContext{
-  Engine: cfg.Engine,
-  Headless: cfg.Headless,
-  Plugins: cfg.Plugins,
-  Timeout: cfg.Timeout,
-  Viewport: cfg.Viewport,
-  Command: "run", // ← change this based on the actual command
-  URL: "",        // ← optional, e.g. from --url or context
-}
-	ctx.Meta.Command = "script"
-	ctx.Meta.Script = script
+		Engine:   cfg.Engine,
+		Headless: cfg.Headless,
+		Plugins:  cfg.Plugins,
+		Timeout:  cfg.Timeout,
+		Viewport: cfg.Viewport,
+		Command:  command,
+		Script:   script,
+	}
 
 	for _, hook := range hooks {
 		ExecutePluginHooksWithContext(hook, pluginPaths, ctx)
 	}
 
 	err := runNodeScript(script)
+	ExecutePluginHooksWithContext("onExit", pluginPaths, ctx)
 	return err
 }
 
@@ -492,14 +491,15 @@ func main() {
 		start := time.Now()
 pluginPaths, _ := LoadPlugins(cfg)
 ctx := PluginContext{
-  Engine: cfg.Engine,
-  Headless: cfg.Headless,
-  Plugins: cfg.Plugins,
-  Timeout: cfg.Timeout,
-  Viewport: cfg.Viewport,
-  Command: "run", // ← change this based on the actual command
-  URL: "",        // ← optional, e.g. from --url or context
+	Engine:   cfg.Engine,
+	Headless: cfg.Headless,
+	Plugins:  cfg.Plugins,
+	Timeout:  cfg.Timeout,
+	Viewport: cfg.Viewport,
+	Command:  "open",
+	URL:      url,
 }
+ExecutePluginHooksWithContext("onStart", pluginPaths, ctx)
 ctx.Meta.Command = "open"
 ctx.Meta.URL = url
 ExecutePluginHooksWithContext("onStart", pluginPaths, ctx)
