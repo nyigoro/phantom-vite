@@ -508,9 +508,9 @@ ctx := PluginContext{
 		Script  string `json:"script,omitempty"`
 		URL     string `json:"url,omitempty"`
 	}{
-		Command: "open",    
-		URL:     url,
-		Script:  scriptPath,
+		Command: "open",
+	        URL:     url,
+	        Script:  scriptPath,
 	},
 }
 ExecutePluginHooksWithContext("onStart", pluginPaths, ctx)
