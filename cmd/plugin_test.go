@@ -20,7 +20,7 @@ func TestLoadPlugins_ValidPaths(t *testing.T) {
 	}
 	defer os.Remove(tempPlugin)
 
-	cfg := Config{Plugins: []string{tempPlugin}}
+	cfg := Config{Plugins: []PluginConfig{{Path: tempPlugin}}}
 
 	paths, err := LoadPlugins(cfg)
 	if err != nil {
@@ -33,7 +33,7 @@ func TestLoadPlugins_ValidPaths(t *testing.T) {
 }
 
 func TestLoadPlugins_InvalidPath(t *testing.T) {
-	cfg := Config{Plugins: []string{"nonexistent/plugin.js"}}
+	cfg := Config{Plugins: []PluginConfig{{Path: "nonexistent/plugin.js"}}}
 
 	_, err := LoadPlugins(cfg)
 	if err == nil {

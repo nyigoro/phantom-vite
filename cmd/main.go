@@ -179,41 +179,6 @@ func ExecutePluginHooksWithContext(hookName string, pluginPaths []string, contex
 	}
 }
 
-func writeTempScript(url string, engine string) (string, error) {
-	var code string
-	
-	switch engine {
-	case "puppeteer":
-		code = fmt.Sprintf(`import puppeteer from 'puppeteer';
-(async () => {
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.goto('%s');
-  const title = await page.title();
-  console.log("[Puppeteer] Page title:", title);
-  await page.screenshot({ path: 'screenshot.png' });
-  await browser.close();
-})();`, url)
-	case "playwright":
-		code = fmt.Sprintf(`import { chromium } from 'playwright';
-(async () => {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.goto('%s');
-  const title = await page.title();
-  console.log("[Playwright] Page title:", title);
-  await page.screenshot({ path: 'screenshot.png' });
-  await browser.close();
-})();`, url)
-	default:
-		return "", fmt.Errorf("unsupported engine for script generation: %s", engine)
-	}
-
-	tmpFile := fmt.Sprintf("phantom-open-%s.js", engine)
-	err := os.WriteFile(tmpFile, []byte(code), 0644)
-	return tmpFile, err
-}
-
 func runPageWithPlugins(script string, hooks []string, command string) error {
 	cfg := loadConfig()
 	pluginPaths, _ := LoadPlugins(cfg)
@@ -242,6 +207,138 @@ func runPageWithPlugins(script string, hooks []string, command string) error {
 	err := runNodeScript(script)
 	ExecutePluginHooksWithContext("onExit", pluginPaths, ctx)
 	return err
+}
+
+// Add this function to your main.go file
+func writeTempScript(url string, engine string) (string, error) {
+	var code string
+	
+	switch engine {
+	case "puppeteer":
+		code = fmt.Sprintf(`import puppeteer from 'puppeteer';
+
+const pluginPaths = process.env["PHANTOM_PLUGINS"]?.split(",") ?? [];
+const plugins = [];
+
+for (const path of pluginPaths) {
+  try {
+    const mod = await import(path);
+    plugins.push(mod);
+  } catch (e) {
+    console.error("[Phantom Vite] Failed to load plugin:", path, e);
+  }
+}
+
+(async () => {
+  for (const p of plugins) {
+    if (typeof p.onStart === 'function') await p.onStart();
+  }
+
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+
+  const url = '%s';
+  await page.goto(url);
+
+  for (const p of plugins) {
+    if (typeof p.onPageLoad === 'function') await p.onPageLoad(page);
+  }
+
+  const title = await page.title();
+  console.log("[Phantom Vite] Title:", title);
+  await page.screenshot({ path: 'screenshot.png' });
+
+  await browser.close();
+
+  for (const p of plugins) {
+    if (typeof p.onExit === 'function') await p.onExit();
+  }
+})();`, url)
+
+	case "playwright":
+		code = fmt.Sprintf(`import { chromium } from 'playwright';
+
+const pluginPaths = process.env["PHANTOM_PLUGINS"]?.split(",") ?? [];
+const plugins = [];
+
+for (const path of pluginPaths) {
+  try {
+    const mod = await import(path);
+    plugins.push(mod);
+  } catch (e) {
+    console.error("[Phantom Vite] Failed to load plugin:", path, e);
+  }
+}
+
+(async () => {
+  for (const p of plugins) {
+    if (typeof p.onStart === 'function') await p.onStart();
+  }
+
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  const url = '%s';
+  await page.goto(url);
+
+  for (const p of plugins) {
+    if (typeof p.onPageLoad === 'function') await p.onPageLoad(page);
+  }
+
+  const title = await page.title();
+  console.log("[Phantom Vite] Title:", title);
+  await page.screenshot({ path: 'screenshot.png' });
+
+  await browser.close();
+
+  for (const p of plugins) {
+    if (typeof p.onExit === 'function') await p.onExit();
+  }
+})();`, url)
+
+	case "selenium":
+		code = fmt.Sprintf(`from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import os
+import json
+
+# Load plugins (simplified for Python)
+plugin_paths = os.environ.get("PHANTOM_PLUGINS", "").split(",") if os.environ.get("PHANTOM_PLUGINS") else []
+
+# Setup Chrome options
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+
+try:
+    driver = webdriver.Chrome(options=chrome_options)
+    
+    url = "%s"
+    driver.get(url)
+    
+    title = driver.title
+    print(f"[Phantom Vite] Title: {title}")
+    
+    driver.save_screenshot("screenshot.png")
+    
+finally:
+    driver.quit()
+`, url)
+
+	default:
+		return "", fmt.Errorf("unsupported engine: %s", engine)
+	}
+
+	var tmpFile string
+	if engine == "selenium" {
+		tmpFile = "phantom-open.py"
+	} else {
+		tmpFile = "phantom-open.js"
+	}
+	
+	err := os.WriteFile(tmpFile, []byte(code), 0644)
+	return tmpFile, err
 }
 
 func validateEngine(engine string) error {
@@ -650,6 +747,7 @@ case "agent":
 ExecutePluginHooksWithContext("onStart", pluginPaths, context)
 
 	cmd := exec.Command(resolveCommand("python3"), "python/agent.py", prompt)
+	cmd.Dir = filepath.Join(filepath.Dir(os.Args[0]), "..") // Set working directory to project root
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

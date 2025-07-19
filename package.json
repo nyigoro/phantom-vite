@@ -5,16 +5,20 @@
   "scripts": {
     "build": "vite build",
     "bundle": "npx vite build",
-    "serve": "npx vite preview"
+    "serve": "npx vite preview",
+    "test": "jest"
   },
   "devDependencies": {
-    "vite": "^6.3.5"
+    "@babel/preset-env": "^7.28.0",
+    "babel-jest": "^30.0.4",
+    "jest": "^30.0.4",
+    "vite": "^7.0.5"
   },
   "dependencies": {
-    "puppeteer": "^24.11.0",
-    "playwright": "^1.53.1"
+    "playwright": "^1.54.1",
+    "puppeteer": "^24.14.0"
   },
   "optionalDependencies": {
-    "@types/node": "^24.0.6"
+    "@types/node": "^24.0.15"
   }
 }
